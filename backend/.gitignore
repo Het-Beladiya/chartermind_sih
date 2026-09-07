@@ -1,0 +1,24 @@
+# Python virtual environment
+.venv/
+venv/
+env/
+ENV/
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Local Environment Variables & Secrets
+.env
+*.env
+*.pem
+*serviceAccountKey*.json
+*credentials*.json
+
+# Distribution / Packaging
+dist/
+build/
+*.egg-info/

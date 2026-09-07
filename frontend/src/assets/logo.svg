@@ -1,0 +1,224 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="100%" height="100%">
+  <!-- Solid White Background -->
+  <rect width="1000" height="1000" fill="#FFFFFF" />
+
+  <defs>
+    <linearGradient id="cmFullNavy" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#0B2545" />
+      <stop offset="100%" stopColor="#061B30" />
+    </linearGradient>
+    <linearGradient id="cmFullCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#00A8CC" />
+      <stop offset="60%" stopColor="#0097B7" />
+      <stop offset="100%" stopColor="#007EA2" />
+    </linearGradient>
+  </defs>
+
+  <!-- ======================================================== -->
+  <!-- 1. CIRCULAR EMBLEM                                       -->
+  <!-- ======================================================== -->
+  <g id="emblem" transform="translate(0, 0)">
+    
+    <!-- Top-Left Crescent Arch Frame -->
+    <path
+      d="M 500 95 C 285 95 160 270 160 480 C 160 540 172 585 188 625 C 170 575 152 510 152 445 C 152 230 295 68 518 68 C 540 68 562 71 582 74 C 550 85 522 91 500 95 Z"
+      fill="#0B2545"
+    />
+
+    <!-- Top Compass Nautical Star (8-Point) -->
+    <g transform="translate(518, 172)">
+      <!-- North Point -->
+      <polygon points="0,0 -12,-18 0,-92 12,-18" fill="#0097B7" />
+      <polygon points="0,0 0,-92 12,-18" fill="#0B2545" />
+
+      <!-- South Point -->
+      <polygon points="0,0 12,18 0,60 -12,18" fill="#0097B7" />
+      <polygon points="0,0 0,60 -12,18" fill="#0B2545" />
+
+      <!-- East Point -->
+      <polygon points="0,0 18,-12 68,0 18,12" fill="#0097B7" />
+      <polygon points="0,0 68,0 18,12" fill="#0B2545" />
+
+      <!-- West Point -->
+      <polygon points="0,0 -18,12 -68,0 -18,-12" fill="#0097B7" />
+      <polygon points="0,0 -68,0 -18,-12" fill="#0B2545" />
+
+      <!-- 4 Diagonal Points -->
+      <polygon points="0,0 -8,-8 -32,-32 0,-10" fill="#00A8CC" />
+      <polygon points="0,0 8,-8 32,-32 0,-10" fill="#061B30" />
+      <polygon points="0,0 8,8 32,32 10,0" fill="#00A8CC" />
+      <polygon points="0,0 -8,8 -32,32 -10,0" fill="#061B30" />
+    </g>
+
+    <!-- Cargo Vessel on Left -->
+    <g id="cargoShip">
+      <!-- Superstructure Tower & Radar Mast -->
+      <path
+        d="M 252 370 L 252 310 L 260 310 L 260 272 L 268 272 L 268 250 L 276 250 L 276 232 L 284 232 L 284 250 L 292 250 L 292 272 L 300 272 L 300 310 L 308 310 L 308 370 Z"
+        fill="#0B2545"
+      />
+      <!-- Radar Antenna Crossbars -->
+      <line x1="265" y1="260" x2="295" y2="260" stroke="#0B2545" stroke-width="6" stroke-linecap="round" />
+      <line x1="270" y1="242" x2="290" y2="242" stroke="#0B2545" stroke-width="5" stroke-linecap="round" />
+
+      <!-- Bridge Windows -->
+      <rect x="262" y="320" width="10" height="8" fill="#0EA5E9" rx="1.5" />
+      <rect x="278" y="320" width="10" height="8" fill="#0EA5E9" rx="1.5" />
+      <rect x="294" y="320" width="10" height="8" fill="#0EA5E9" rx="1.5" />
+
+      <!-- Stacked Deck Containers -->
+      <!-- Tier 1 -->
+      <rect x="320" y="335" width="48" height="34" fill="#0097B7" stroke="#0B2545" stroke-width="3" />
+      <line x1="344" y1="335" x2="344" y2="369" stroke="#0B2545" stroke-width="2.5" />
+      <rect x="372" y="335" width="48" height="34" fill="#0EA5E9" stroke="#0B2545" stroke-width="3" />
+      <line x1="396" y1="335" x2="396" y2="369" stroke="#0B2545" stroke-width="2.5" />
+
+      <!-- Tier 2 -->
+      <rect x="308" y="372" width="52" height="34" fill="#0077B6" stroke="#0B2545" stroke-width="3" />
+      <line x1="334" y1="372" x2="334" y2="406" stroke="#0B2545" stroke-width="2.5" />
+      <rect x="363" y="372" width="52" height="34" fill="#0097B7" stroke="#0B2545" stroke-width="3" />
+      <line x1="389" y1="372" x2="389" y2="406" stroke="#0B2545" stroke-width="2.5" />
+
+      <!-- Tier 3 -->
+      <rect x="308" y="409" width="58" height="32" fill="#023E8A" stroke="#0B2545" stroke-width="3" />
+      <rect x="369" y="409" width="58" height="32" fill="#0077B6" stroke="#0B2545" stroke-width="3" />
+      <rect x="430" y="396" width="30" height="45" fill="#0EA5E9" stroke="#0B2545" stroke-width="3" />
+
+      <!-- Hull in Navy -->
+      <path
+        d="M 215 435 L 300 435 L 452 405 L 468 485 L 452 546 C 420 554 355 565 258 538 C 232 527 218 495 215 435 Z"
+        fill="url(#cmFullNavy)"
+      />
+
+      <!-- Anchor Emblem on Hull -->
+      <g transform="translate(412, 482) scale(2.4)">
+        <circle cx="0" cy="-8" r="3" fill="none" stroke="#FFFFFF" stroke-width="2" />
+        <line x1="0" y1="-5" x2="0" y2="10" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" />
+        <line x1="-6" y1="-1" x2="6" y2="-1" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" />
+        <path
+          d="M -8 4 C -7 10 0 11 0 11 C 0 11 7 10 8 4"
+          fill="none"
+          stroke="#FFFFFF"
+          stroke-width="2.5"
+          stroke-linecap="round"
+        />
+        <polygon points="-9,3 -6,6 -10,7" fill="#FFFFFF" />
+        <polygon points="9,3 6,6 10,7" fill="#FFFFFF" />
+      </g>
+    </g>
+
+    <!-- Brain on Right -->
+    <!-- Left Brain Hemisphere (Navy) -->
+    <g id="leftBrain">
+      <path
+        d="M 470 240 C 448 232 414 224 382 248 C 356 232 318 240 300 261 C 273 266 246 288 240 323 C 219 336 206 365 211 395 C 195 422 203 459 227 481 C 219 516 240 551 275 565 C 298 594 344 597 382 589 C 411 605 451 597 470 575"
+        fill="none"
+        stroke="#0B2545"
+        stroke-width="14"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <path
+        d="M 392 258 C 379 285 387 314 414 330 C 430 338 449 338 462 333"
+        fill="none"
+        stroke="#0B2545"
+        stroke-width="11"
+        stroke-linecap="round"
+      />
+      <path
+        d="M 264 346 C 296 346 328 368 336 400 C 341 427 325 454 298 460"
+        fill="none"
+        stroke="#0B2545"
+        stroke-width="11"
+        stroke-linecap="round"
+      />
+      <path
+        d="M 462 405 C 425 405 393 427 387 465 C 382 497 406 524 441 527"
+        fill="none"
+        stroke="#0B2545"
+        stroke-width="11"
+        stroke-linecap="round"
+      />
+      <line x1="470" y1="240" x2="470" y2="575" stroke="#0B2545" stroke-width="14" stroke-linecap="round" />
+    </g>
+
+    <!-- Right Brain Hemisphere (Cyan Digital Circuitry) -->
+    <g id="rightBrain">
+      <path
+        d="M 486 240 C 508 232 548 224 586 248 C 612 232 655 240 674 261 C 701 266 728 288 733 323 C 754 336 767 365 762 395 C 778 422 770 459 746 481 C 754 516 733 551 698 565 C 674 594 623 597 586 589 C 556 605 516 597 486 575"
+        fill="none"
+        stroke="url(#cmFullCyan)"
+        stroke-width="14"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <line x1="486" y1="240" x2="486" y2="575" stroke="#0097B7" stroke-width="14" stroke-linecap="round" />
+
+      <!-- Circuit Traces & Nodes -->
+      <path d="M 486 295 L 590 295 L 633 340 L 678 340" fill="none" stroke="#00A8CC" stroke-width="11" stroke-linecap="round" />
+      <circle cx="680" cy="340" r="13" fill="#00A8CC" />
+      <circle cx="680" cy="340" r="5.5" fill="#FFFFFF" />
+
+      <path d="M 486 370 L 569 370 L 622 425 L 697 425" fill="none" stroke="#0097B7" stroke-width="11" stroke-linecap="round" />
+      <circle cx="700" cy="425" r="13" fill="#0097B7" />
+      <circle cx="700" cy="425" r="5.5" fill="#FFFFFF" />
+
+      <path d="M 486 448 L 539 448 L 601 386 L 654 386" fill="none" stroke="#007EA2" stroke-width="11" stroke-linecap="round" />
+      <circle cx="656" cy="386" r="11" fill="#007EA2" />
+
+      <path d="M 486 525 L 563 525 L 609 480 L 676 480" fill="none" stroke="#00A8CC" stroke-width="11" stroke-linecap="round" />
+      <circle cx="678" cy="480" r="13" fill="#00A8CC" />
+      <circle cx="678" cy="480" r="5.5" fill="#FFFFFF" />
+
+      <path d="M 486 562 L 585 562" fill="none" stroke="#0097B7" stroke-width="9" stroke-linecap="round" />
+      <circle cx="601" cy="562" r="11" fill="#0097B7" />
+      <circle cx="622" cy="295" r="8" fill="#00A8CC" />
+    </g>
+
+    <!-- Ocean Waves (Bottom Strata) -->
+    <g id="waves">
+      <!-- Wave 1 (Top Cyan) -->
+      <path
+        d="M 125 600 C 238 568 358 546 486 600 C 598 646 702 600 822 554 C 710 616 589 661 469 616 C 349 570 229 600 125 600 Z"
+        fill="#0EA5E9"
+      />
+      <!-- Wave 2 (Ocean Blue) -->
+      <path
+        d="M 149 638 C 261 600 382 576 502 630 C 606 676 710 638 814 592 C 702 654 590 700 470 646 C 350 592 230 630 149 638 Z"
+        fill="#0077B6"
+      />
+      <!-- Wave 3 (Deep Navy) -->
+      <path
+        d="M 189 676 C 293 638 405 614 518 660 C 622 698 718 668 798 630 C 694 689 581 727 461 681 C 341 635 245 676 189 676 Z"
+        fill="#0B2545"
+      />
+      <!-- Wave 4 (Bottom Teal) -->
+      <path
+        d="M 261 714 C 349 684 445 668 542 698 C 630 728 702 706 766 676 C 678 722 582 751 486 721 C 390 691 309 714 261 714 Z"
+        fill="#0097B7"
+      />
+    </g>
+  </g>
+
+  <!-- ======================================================== -->
+  <!-- 2. TYPOGRAPHY & SLOGAN BAR                               -->
+  <!-- ======================================================== -->
+  <!-- Wordmark CHARTERMIND -->
+  <text x="500" y="830" text-anchor="middle" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif" font-weight="900" font-size="96" letter-spacing="-1">
+    <tspan fill="#0B2545">CHARTER</tspan><tspan fill="#0097B7">MIND</tspan>
+  </text>
+
+  <!-- Slogan: PREDICT • OPTIMIZE • CHARTER SMARTER -->
+  <g transform="translate(500, 882)">
+    <!-- Left Rule -->
+    <line x1="-415" y1="-8" x2="-305" y2="-8" stroke="#0B2545" stroke-width="3.5" stroke-linecap="round" />
+    
+    <!-- Tagline Text -->
+    <text x="0" y="0" text-anchor="middle" fill="#0B2545" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif" font-weight="800" font-size="25" letter-spacing="4">
+      PREDICT  <tspan fill="#0097B7">•</tspan>  OPTIMIZE  <tspan fill="#0097B7">•</tspan>  CHARTER SMARTER
+    </text>
+
+    <!-- Right Rule -->
+    <line x1="305" y1="-8" x2="415" y2="-8" stroke="#0B2545" stroke-width="3.5" stroke-linecap="round" />
+  </g>
+</svg>

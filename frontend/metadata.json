@@ -1,0 +1,8 @@
+{
+  "name": "improved ",
+  "description": "AI-powered freight forecasting, vessel optimization, port compatibility, and voyage decision engine.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
