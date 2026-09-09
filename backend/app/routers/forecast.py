@@ -15,11 +15,22 @@ from app.schemas.forecast import (
     ForecastResult,
     OptimalCharterWindow,
 )
+from app.schemas.voyage import SimulatorOverrides
 from app.services.forecast_engine import determine_optimal_window, generate_forecast
 from app.services.risk_engine import calculate_risk_scores
-from app.utils.constants import PORT_SPECS, ROUTE_BASELINE_RATES, VESSEL_SPECS
+from app.utils.constants import PORT_SPECS, ROUTE_BASELINE_RATES, VESSEL_RATE_MULTIPLIERS, VESSEL_SPECS
 
 router = APIRouter(prefix="/forecast", tags=["Freight Rate Forecasting & Market Timing"])
+
+
+class QuickForecastRequest(BaseModel):
+    origin: str = "Indonesia"
+    destination_port: str = "Paradip"
+    cargo_type: str = "Coal"
+    cargo_quantity_mt: float = 75000.0
+    preferred_vessel_type: Optional[str] = "panamax"
+    horizon_days: int = 30
+    simulator_overrides: Optional[SimulatorOverrides] = None
 
 
 class ForecastCombinedResponse(BaseModel):
@@ -79,17 +90,18 @@ async def generate_forecast_endpoint(
         )
 
     port = PORT_SPECS.get(cargo.destination_port) or list(PORT_SPECS.values())[0]
-    default_vessel = VESSEL_SPECS.get(
-        (cargo.preferred_vessel_type or "panamax").lower(),
-        VESSEL_SPECS["panamax"],
-    )
+    vessel_class_key = (cargo.preferred_vessel_type or "panamax").lower()
+    mult = VESSEL_RATE_MULTIPLIERS.get(vessel_class_key, 1.0)
+    adjusted_base_rate = round(base_rate * mult, 2)
 
     # 1. Generate Forecast
     forecast_result = generate_forecast(
         route=route_name,
-        base_rate=base_rate,
+        base_rate=adjusted_base_rate,
         horizon_days=req.horizon_days,
         overrides=req.simulator_overrides,
+        vessel_class=cargo.preferred_vessel_type or "Panamax",
+        cargo_type=cargo.cargo_type or "Coal",
     )
 
     # 2. Risk evaluation to inform timing window
@@ -97,6 +109,59 @@ async def generate_forecast_endpoint(
 
     # 3. Determine Optimal Window
     optimal_window = determine_optimal_window(forecast_result, cargo, risk_scores)
+
+    return ForecastCombinedResponse(
+        forecast=forecast_result,
+        optimal_window=optimal_window,
+    )
+
+
+@router.post(
+    "/quick",
+    response_model=ForecastCombinedResponse,
+    summary="Generate instant ML freight rate forecast without requiring a persisted database cargo record",
+)
+async def quick_forecast_endpoint(
+    req: QuickForecastRequest,
+) -> ForecastCombinedResponse:
+    """
+    Produce multi-day time-series projections, confidence intervals, and an actionable
+    chartering window advisory on-the-fly using the trained Ridge Regression ML model.
+    """
+    route_name = f"{req.origin} → {req.destination_port}"
+    base_rate = ROUTE_BASELINE_RATES.get(req.origin, {}).get(
+        req.destination_port, 18.0
+    )
+    port = PORT_SPECS.get(req.destination_port) or list(PORT_SPECS.values())[0]
+    default_vessel = VESSEL_SPECS.get(
+        (req.preferred_vessel_type or "panamax").lower(),
+        VESSEL_SPECS["panamax"],
+    )
+
+    class QuickCargo:
+        cargo_quantity_mt = req.cargo_quantity_mt
+        cargo_type = req.cargo_type
+        origin_country = req.origin
+        destination_port = req.destination_port
+        preferred_vessel_type = req.preferred_vessel_type
+
+    temp_cargo = QuickCargo()
+
+    vessel_class_key = (req.preferred_vessel_type or "panamax").lower()
+    mult = VESSEL_RATE_MULTIPLIERS.get(vessel_class_key, 1.0)
+    adjusted_base_rate = round(base_rate * mult, 2)
+
+    forecast_result = generate_forecast(
+        route=route_name,
+        base_rate=adjusted_base_rate,
+        horizon_days=req.horizon_days,
+        overrides=req.simulator_overrides,
+        vessel_class=req.preferred_vessel_type or "Panamax",
+        cargo_type=req.cargo_type or "Coal",
+    )
+
+    risk_scores = calculate_risk_scores(temp_cargo, default_vessel, port, req.simulator_overrides)
+    optimal_window = determine_optimal_window(forecast_result, temp_cargo, risk_scores)
 
     return ForecastCombinedResponse(
         forecast=forecast_result,

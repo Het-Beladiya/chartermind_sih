@@ -1,0 +1,1 @@
+# CharterMind FastAPI application package

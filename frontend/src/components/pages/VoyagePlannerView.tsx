@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCharter } from '../../context/CharterContext';
 import {
   CargoType,
@@ -28,6 +28,12 @@ import confetti from 'canvas-confetti';
 export const VoyagePlannerView: React.FC = () => {
   const { cargoRequest, generateRecommendation, isGenerating } = useCharter();
   const [form, setForm] = useState(cargoRequest);
+
+  // Keep local form in sync whenever cargoRequest changes (e.g. from restored persistence)
+  useEffect(() => {
+    setForm(cargoRequest);
+  }, [cargoRequest]);
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

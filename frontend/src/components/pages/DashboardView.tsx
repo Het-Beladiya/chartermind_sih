@@ -48,12 +48,14 @@ export const DashboardView: React.FC = () => {
     setExpandedAlerts((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // Mini sparkline data (last 15 historical + next 15 forecast)
+  // Mini sparkline data matching the active forecast horizon and corridor
   const sparklineData = forecast.dataPoints
-    .filter((p) => Math.abs(p.dayIndex) <= 15)
+    .filter((p) => p.dayIndex >= -15 && p.dayIndex <= Math.min(forecast.horizonDays, 30))
     .map((p) => ({
       date: p.date.slice(5),
       rate: p.predicted,
+      lower: p.isForecast ? p.lowerBound : p.predicted,
+      upper: p.isForecast ? p.upperBound : p.predicted,
       isForecast: p.isForecast,
     }));
 
@@ -264,6 +266,10 @@ export const DashboardView: React.FC = () => {
                       <stop offset="0%" stopColor="#0EA5E9" stopOpacity={0.35} />
                       <stop offset="100%" stopColor="#0EA5E9" stopOpacity={0.02} />
                     </linearGradient>
+                    <linearGradient id="dashCorridorGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#38BDF8" stopOpacity={0.20} />
+                      <stop offset="100%" stopColor="#38BDF8" stopOpacity={0.03} />
+                    </linearGradient>
                   </defs>
                   <XAxis
                     dataKey="date"
@@ -287,13 +293,28 @@ export const DashboardView: React.FC = () => {
                         const d = payload[0].payload;
                         return (
                           <div className="bg-[#061B30] text-white p-2.5 rounded-lg text-xs font-mono-data shadow-md border border-[#334155]">
-                            <div className="text-[#CBD5E1]">{d.date}</div>
-                            <div className="font-bold text-[#0EA5E9] mt-0.5">{formatFreightRate(d.rate, currencyUnit)}</div>
+                            <div className="text-[#CBD5E1] flex items-center justify-between gap-2">
+                              <span>{d.date}</span>
+                              <span className="text-[10px] text-cyan-400 font-bold">{d.isForecast ? 'PROJECTION' : 'HISTORICAL'}</span>
+                            </div>
+                            <div className="font-bold text-[#0EA5E9] mt-0.5 text-sm">{formatFreightRate(d.rate, currencyUnit)}</div>
+                            {d.isForecast && (
+                              <div className="text-[10px] text-slate-400 mt-1 pt-1 border-t border-slate-700">
+                                Corridor: {formatFreightRate(d.lower, currencyUnit)} – {formatFreightRate(d.upper, currencyUnit)}
+                              </div>
+                            )}
                           </div>
                         );
                       }
                       return null;
                     }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="upper"
+                    stroke="transparent"
+                    fill="url(#dashCorridorGrad)"
+                    isAnimationActive={false}
                   />
                   <Area
                     type="monotone"
@@ -305,6 +326,7 @@ export const DashboardView: React.FC = () => {
                 </AreaChart>
               </ResponsiveContainer>
             </div>
+
           </div>
 
           {/* Optimal Window Callout */}

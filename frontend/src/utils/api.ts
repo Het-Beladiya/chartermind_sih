@@ -1,4 +1,9 @@
 import { auth } from './firebase';
+import {
+  ForecastResult,
+  OptimalCharterWindowResult,
+  SimulatorOverrides,
+} from '../types';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -217,6 +222,81 @@ export async function runSimulation(cargoRequestId: string, overrides: any) {
 /**
  * 6. Freight Forecasting & Risk
  */
+export interface QuickForecastPayload {
+  origin: string;
+  destination_port: string;
+  cargo_type: string;
+  cargo_quantity_mt: number;
+  preferred_vessel_type?: string | null;
+  horizon_days: number;
+  simulator_overrides?: Partial<SimulatorOverrides> | null;
+}
+
+export interface QuickForecastResponse {
+  forecast: ForecastResult;
+  optimalWindow: OptimalCharterWindowResult;
+}
+
+/**
+ * Call backend ML freight forecasting endpoint POST /forecast/quick
+ * Maps snake_case backend fields into typed frontend camelCase ForecastResult and OptimalCharterWindowResult
+ */
+export async function fetchQuickForecast(payload: QuickForecastPayload): Promise<QuickForecastResponse> {
+  const data = await api.post('/forecast/quick', payload);
+
+  const rawForecast = data?.forecast || {};
+  const rawWindow = data?.optimal_window || rawForecast?.optimal_charter_window || {};
+
+  const forecast: ForecastResult = {
+    route: rawForecast.route || `${payload.origin} → ${payload.destination_port}`,
+    currentRate: Number(rawForecast.current_rate ?? 0),
+    projectedRate14d: Number(rawForecast.projected_rate_14d ?? 0),
+    projectedRate30d: Number(rawForecast.projected_rate_30d ?? 0),
+    trend: rawForecast.trend || 'Stable',
+    trendPercent: Number(rawForecast.trend_percent ?? 0),
+    confidenceScore: Number(rawForecast.confidence_score ?? 85),
+    horizonDays: (rawForecast.horizon_days || payload.horizon_days || 30) as (7 | 14 | 30 | 60),
+    dataPoints: Array.isArray(rawForecast.data_points)
+      ? rawForecast.data_points.map((pt: any) => ({
+          date: pt.date,
+          dayIndex: Number(pt.day_index ?? pt.dayIndex ?? 0),
+          isForecast: Boolean(pt.is_forecast ?? pt.isForecast),
+          predicted: Number(pt.predicted ?? 0),
+          lowerBound: Number(pt.lower_bound ?? pt.lowerBound ?? 0),
+          upperBound: Number(pt.upper_bound ?? pt.upperBound ?? 0),
+          historical: pt.historical !== undefined && pt.historical !== null ? Number(pt.historical) : undefined,
+        }))
+      : [],
+    featureContributions: Array.isArray(rawForecast.feature_contributions)
+      ? rawForecast.feature_contributions.map((fc: any) => ({
+          factor: fc.factor,
+          contributionPercent: Number(fc.contribution_percent ?? fc.contributionPercent ?? 0),
+          direction: fc.direction || 'up',
+          description: fc.description || '',
+        }))
+      : [],
+    netExpectedChangePercent: Number(rawForecast.net_expected_change_percent ?? rawForecast.trend_percent ?? 0),
+  };
+
+  const rawRec = rawWindow.recommendation;
+  const recommendation = (rawRec === 'Avoid' || rawRec === 'Avoid / Reconsider')
+    ? 'Avoid / Reconsider'
+    : (rawRec === 'Wait' ? 'Wait' : 'Charter Now');
+
+  const optimalWindow: OptimalCharterWindowResult = {
+    recommendation,
+    bestWindowStart: rawWindow.best_window_start || rawWindow.bestWindowStart || '',
+    bestWindowEnd: rawWindow.best_window_end || rawWindow.bestWindowEnd || '',
+    potentialSavingsUSD: Number(rawWindow.potential_savings_usd ?? rawWindow.potentialSavingsUSD ?? 0),
+    potentialSavingsINR: Number(rawWindow.potential_savings_inr ?? rawWindow.potentialSavingsINR ?? 0),
+    potentialSavingsLakhs: Number(rawWindow.potential_savings_lakhs ?? rawWindow.potentialSavingsLakhs ?? 0),
+    tradeOffSentence: rawWindow.trade_off_sentence || rawWindow.tradeOffSentence || '',
+    detailedRationale: rawWindow.detailed_rationale || rawWindow.detailedRationale || '',
+  };
+
+  return { forecast, optimalWindow };
+}
+
 export async function generateForecast(cargoRequestId: string, horizonDays: number, overrides?: any) {
   return api.post('/forecast/generate', {
     cargo_request_id: cargoRequestId,

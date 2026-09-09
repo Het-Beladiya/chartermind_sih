@@ -56,18 +56,19 @@ def initialize_firebase() -> Optional[firebase_admin.App]:
             except Exception as err:
                 logger.error(f"Failed to load service account file '{cert_path}': {err}")
         else:
-            missing_msg = (
-                f"\n{'='*70}\n"
-                f"FIREBASE SERVICE ACCOUNT FILE NOT FOUND: '{cert_path}'\n"
-                f"To set up real Firebase Authentication:\n"
-                f"1. Go to Firebase Console (https://console.firebase.google.com)\n"
-                f"2. Navigate to: Project Settings -> Service Accounts\n"
-                f"3. Click 'Generate new private key' and save as '{cert_path}'\n"
-                f"   in the backend root directory.\n"
-                f"{'='*70}\n"
-            )
-            print(missing_msg)
-            logger.warning(f"Firebase service account file '{cert_path}' not found.")
+            if not settings.DEBUG:
+                missing_msg = (
+                    f"\n{'='*70}\n"
+                    f"FIREBASE SERVICE ACCOUNT FILE NOT FOUND: '{cert_path}'\n"
+                    f"To set up real Firebase Authentication:\n"
+                    f"1. Go to Firebase Console (https://console.firebase.google.com)\n"
+                    f"2. Navigate to: Project Settings -> Service Accounts\n"
+                    f"3. Click 'Generate new private key' and save as '{cert_path}'\n"
+                    f"   in the backend root directory.\n"
+                    f"{'='*70}\n"
+                )
+                print(missing_msg)
+            logger.info("Firebase: Running in local development mock authentication mode (demo-* tokens active).")
 
     # 3. Attempt initialization
     try:

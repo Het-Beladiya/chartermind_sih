@@ -1,0 +1,362 @@
+{
+  "Dhamra": {
+    "port_name": "Dhamra",
+    "state": "Odisha",
+    "channel_depth_m": 17.0,
+    "max_draft_m": 19.0,
+    "max_beam_m": 50.0,
+    "max_loa_m": 350.0,
+    "max_deadweight_dwt": 200000,
+    "harbor_size": "Medium",
+    "harbor_type": "Coastal",
+    "pilotage_compulsory": "Unknown",
+    "solid_bulk_facilities": "Unknown",
+    "latitude": 20.81666667,
+    "longitude": 86.96666667,
+    "avg_pre_berthing_detention_hours": 16.0,
+    "avg_turnaround_time_hours": 42.0,
+    "handling_capacity_million_tonnes": 64.8,
+    "traffic_metrics": {
+      "latest_traffic_mt": 48.0,
+      "mean_traffic_mt": 45.0,
+      "std_traffic_mt": 8.0,
+      "traffic_z_score": 0.35,
+      "annual_growth_pct": 3.2,
+      "congestion_level": "Moderate",
+      "utilization_pct": 74.1,
+      "annual_history": []
+    }
+  },
+  "Kolkata": {
+    "port_name": "Kolkata",
+    "state": "West Bengal",
+    "channel_depth_m": 7.9,
+    "max_draft_m": 6.8,
+    "max_beam_m": 25.0,
+    "max_loa_m": 171.9,
+    "max_deadweight_dwt": 35000,
+    "harbor_size": "Large",
+    "harbor_type": "River (Natural)",
+    "pilotage_compulsory": "Yes",
+    "solid_bulk_facilities": "Unknown",
+    "latitude": 22.55,
+    "longitude": 88.333333,
+    "avg_pre_berthing_detention_hours": 28.0,
+    "avg_turnaround_time_hours": 68.0,
+    "handling_capacity_million_tonnes": 64.8,
+    "traffic_metrics": {
+      "latest_traffic_mt": 48.0,
+      "mean_traffic_mt": 45.0,
+      "std_traffic_mt": 8.0,
+      "traffic_z_score": 0.35,
+      "annual_growth_pct": 3.2,
+      "congestion_level": "Moderate",
+      "utilization_pct": 74.1,
+      "annual_history": []
+    }
+  },
+  "Haldia": {
+    "port_name": "Haldia",
+    "state": "West Bengal",
+    "channel_depth_m": 7.9,
+    "max_draft_m": 8.5,
+    "max_beam_m": 44.0,
+    "max_loa_m": 177.0,
+    "max_deadweight_dwt": 35000,
+    "harbor_size": "Very Small",
+    "harbor_type": "River (Natural)",
+    "pilotage_compulsory": "Yes",
+    "solid_bulk_facilities": "Unknown",
+    "latitude": 22.016667,
+    "longitude": 88.083333,
+    "avg_pre_berthing_detention_hours": 28.0,
+    "avg_turnaround_time_hours": 68.0,
+    "handling_capacity_million_tonnes": 64.8,
+    "traffic_metrics": {
+      "latest_traffic_mt": 48.0,
+      "mean_traffic_mt": 45.0,
+      "std_traffic_mt": 8.0,
+      "traffic_z_score": 0.35,
+      "annual_growth_pct": 3.2,
+      "congestion_level": "Moderate",
+      "utilization_pct": 74.1,
+      "annual_history": []
+    }
+  },
+  "Chennai": {
+    "port_name": "Chennai",
+    "state": "Andhra Pradesh / Tamil Nadu",
+    "channel_depth_m": 18.6,
+    "max_draft_m": 16.5,
+    "max_beam_m": 60.0,
+    "max_loa_m": 336.7,
+    "max_deadweight_dwt": 85000,
+    "harbor_size": "Large",
+    "harbor_type": "Coastal (Breakwater)",
+    "pilotage_compulsory": "Yes",
+    "solid_bulk_facilities": "Unknown",
+    "latitude": 13.1,
+    "longitude": 80.3,
+    "avg_pre_berthing_detention_hours": 16.0,
+    "avg_turnaround_time_hours": 42.0,
+    "handling_capacity_million_tonnes": 63.1,
+    "traffic_metrics": {
+      "latest_traffic_mt": 46.76,
+      "mean_traffic_mt": 53.5,
+      "std_traffic_mt": 4.25,
+      "traffic_z_score": -1.59,
+      "annual_growth_pct": -0.07,
+      "congestion_level": "Low",
+      "utilization_pct": 74.1,
+      "annual_history": [
+        {
+          "year": "2010-11",
+          "traffic_mt": 61.46
+        },
+        {
+          "year": "2011-12",
+          "traffic_mt": 55.71
+        },
+        {
+          "year": "2012-13",
+          "traffic_mt": 53.4
+        },
+        {
+          "year": "2013-14",
+          "traffic_mt": 51.1
+        },
+        {
+          "year": "2014-15",
+          "traffic_mt": 52.54
+        },
+        {
+          "year": "2015-16",
+          "traffic_mt": 50.06
+        },
+        {
+          "year": "2016-17",
+          "traffic_mt": 50.21
+        },
+        {
+          "year": "2017-18",
+          "traffic_mt": 51.88
+        },
+        {
+          "year": "2018-19",
+          "traffic_mt": 53.01
+        },
+        {
+          "year": "2019-20",
+          "traffic_mt": 46.76
+        }
+      ]
+    }
+  },
+  "Vizag": {
+    "port_name": "Vizag",
+    "state": "Andhra Pradesh / Tamil Nadu",
+    "channel_depth_m": 17.1,
+    "max_draft_m": 18.1,
+    "max_beam_m": 50.0,
+    "max_loa_m": 320.0,
+    "max_deadweight_dwt": 200000,
+    "harbor_size": "Medium",
+    "harbor_type": "Coastal (Breakwater)",
+    "pilotage_compulsory": "Yes",
+    "solid_bulk_facilities": "Unknown",
+    "latitude": 17.683333,
+    "longitude": 83.3,
+    "avg_pre_berthing_detention_hours": 16.0,
+    "avg_turnaround_time_hours": 42.0,
+    "handling_capacity_million_tonnes": 98.2,
+    "traffic_metrics": {
+      "latest_traffic_mt": 72.72,
+      "mean_traffic_mt": 62.45,
+      "std_traffic_mt": 4.8,
+      "traffic_z_score": 2.14,
+      "annual_growth_pct": 2.02,
+      "congestion_level": "High",
+      "utilization_pct": 74.1,
+      "annual_history": [
+        {
+          "year": "2010-11",
+          "traffic_mt": 68.04
+        },
+        {
+          "year": "2011-12",
+          "traffic_mt": 67.42
+        },
+        {
+          "year": "2012-13",
+          "traffic_mt": 59.04
+        },
+        {
+          "year": "2013-14",
+          "traffic_mt": 58.5
+        },
+        {
+          "year": "2014-15",
+          "traffic_mt": 58.0
+        },
+        {
+          "year": "2015-16",
+          "traffic_mt": 57.03
+        },
+        {
+          "year": "2016-17",
+          "traffic_mt": 61.02
+        },
+        {
+          "year": "2017-18",
+          "traffic_mt": 63.54
+        },
+        {
+          "year": "2018-19",
+          "traffic_mt": 65.3
+        },
+        {
+          "year": "2019-20",
+          "traffic_mt": 72.72
+        }
+      ]
+    }
+  },
+  "Paradip": {
+    "port_name": "Paradip",
+    "state": "Odisha",
+    "channel_depth_m": 12.5,
+    "max_draft_m": 14.5,
+    "max_beam_m": 46.0,
+    "max_loa_m": 295.0,
+    "max_deadweight_dwt": 85000,
+    "harbor_size": "Small",
+    "harbor_type": "Coastal (Breakwater)",
+    "pilotage_compulsory": "Yes",
+    "solid_bulk_facilities": "Unknown",
+    "latitude": 20.266667,
+    "longitude": 86.683333,
+    "avg_pre_berthing_detention_hours": 16.0,
+    "avg_turnaround_time_hours": 42.0,
+    "handling_capacity_million_tonnes": 152.1,
+    "traffic_metrics": {
+      "latest_traffic_mt": 112.69,
+      "mean_traffic_mt": 67.48,
+      "std_traffic_mt": 24.74,
+      "traffic_z_score": 1.83,
+      "annual_growth_pct": 16.02,
+      "congestion_level": "High",
+      "utilization_pct": 74.1,
+      "annual_history": [
+        {
+          "year": "2010-11",
+          "traffic_mt": 55.53
+        },
+        {
+          "year": "2011-12",
+          "traffic_mt": 54.25
+        },
+        {
+          "year": "2012-13",
+          "traffic_mt": 56.55
+        },
+        {
+          "year": "2013-14",
+          "traffic_mt": 68.0
+        },
+        {
+          "year": "2014-15",
+          "traffic_mt": 71.01
+        },
+        {
+          "year": "2015-16",
+          "traffic_mt": 76.4
+        },
+        {
+          "year": "2016-17",
+          "traffic_mt": 88.96
+        },
+        {
+          "year": "2017-18",
+          "traffic_mt": 102.03
+        },
+        {
+          "year": "2018-19",
+          "traffic_mt": 109.3
+        },
+        {
+          "year": "2019-20",
+          "traffic_mt": 112.69
+        }
+      ]
+    }
+  },
+  "Kamarajar": {
+    "port_name": "Kamarajar",
+    "state": "Andhra Pradesh / Tamil Nadu",
+    "channel_depth_m": 15.5,
+    "max_draft_m": 15.0,
+    "max_beam_m": 48.2,
+    "max_loa_m": 365.9,
+    "max_deadweight_dwt": 85000,
+    "harbor_size": "Small",
+    "harbor_type": "Coastal (Breakwater)",
+    "pilotage_compulsory": "Yes",
+    "solid_bulk_facilities": "Unknown",
+    "latitude": 13.26138889,
+    "longitude": 80.3425,
+    "avg_pre_berthing_detention_hours": 16.0,
+    "avg_turnaround_time_hours": 42.0,
+    "handling_capacity_million_tonnes": 60.0,
+    "traffic_metrics": {
+      "latest_traffic_mt": 31.75,
+      "mean_traffic_mt": 20.93,
+      "std_traffic_mt": 9.65,
+      "traffic_z_score": 1.12,
+      "annual_growth_pct": 16.42,
+      "congestion_level": "High",
+      "utilization_pct": 52.9,
+      "annual_history": [
+        {
+          "year": "2010-11",
+          "traffic_mt": 11.01
+        },
+        {
+          "year": "2011-12",
+          "traffic_mt": 14.96
+        },
+        {
+          "year": "2012-13",
+          "traffic_mt": 17.89
+        },
+        {
+          "year": "2013-14",
+          "traffic_mt": 27.34
+        },
+        {
+          "year": "2014-15",
+          "traffic_mt": 30.25
+        },
+        {
+          "year": "2015-16",
+          "traffic_mt": 32.21
+        },
+        {
+          "year": "2016-17",
+          "traffic_mt": 30.02
+        },
+        {
+          "year": "2017-18",
+          "traffic_mt": 30.45
+        },
+        {
+          "year": "2018-19",
+          "traffic_mt": 34.5
+        },
+        {
+          "year": "2019-20",
+          "traffic_mt": 31.75
+        }
+      ]
+    }
+  }
+}

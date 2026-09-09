@@ -1,0 +1,288 @@
+{
+  "bdi_index_monthly.csv": {
+    "filename": "bdi_index_monthly.csv",
+    "rows": 308,
+    "columns": 6,
+    "column_names": [
+      "Date",
+      "Price",
+      "Open",
+      "High",
+      "Low",
+      "Change %"
+    ],
+    "dtypes": {
+      "Date": "str",
+      "Price": "float64",
+      "Open": "float64",
+      "High": "float64",
+      "Low": "float64",
+      "Change %": "float64"
+    },
+    "date_range": {
+      "min": "2001-01-01",
+      "max": "2026-08-01"
+    },
+    "missing_values": 0,
+    "missing_by_col": {
+      "Date": 0,
+      "Price": 0,
+      "Open": 0,
+      "High": 0,
+      "Low": 0,
+      "Change %": 0
+    },
+    "duplicates": 0,
+    "task_type": "Time-Series Regression",
+    "target_variable": "Price",
+    "useful_features": [
+      "Open",
+      "High",
+      "Low",
+      "Change %"
+    ],
+    "notes": "Primary macro dry-bulk freight benchmark (2001-2026, 308 monthly steps). No lookahead allowed."
+  },
+  "bdi_index_daily_sample.csv": {
+    "filename": "bdi_index_daily_sample.csv",
+    "rows": 120,
+    "columns": 6,
+    "column_names": [
+      "Date",
+      "Price",
+      "Open",
+      "High",
+      "Low",
+      "Change %"
+    ],
+    "dtypes": {
+      "Date": "str",
+      "Price": "float64",
+      "Open": "float64",
+      "High": "float64",
+      "Low": "float64",
+      "Change %": "float64"
+    },
+    "date_range": {
+      "min": "2020-07-10",
+      "max": "2021-01-08"
+    },
+    "missing_values": 0,
+    "missing_by_col": {
+      "Date": 0,
+      "Price": 0,
+      "Open": 0,
+      "High": 0,
+      "Low": 0,
+      "Change %": 0
+    },
+    "duplicates": 0,
+    "task_type": "Validation Reference Sample",
+    "target_variable": "Price",
+    "useful_features": [
+      "Date",
+      "Price",
+      "Open",
+      "High",
+      "Low",
+      "Change %"
+    ],
+    "notes": "Daily frequency sample for high-resolution short-term validation."
+  },
+  "bdi_vessel_class_subindices.csv": {
+    "filename": "bdi_vessel_class_subindices.csv",
+    "rows": 3022,
+    "columns": 5,
+    "column_names": [
+      "Date",
+      "Handysize_Index",
+      "Supramax_Index",
+      "Panamax_Index",
+      "Capesize_Index"
+    ],
+    "dtypes": {
+      "Date": "str",
+      "Handysize_Index": "int64",
+      "Supramax_Index": "int64",
+      "Panamax_Index": "int64",
+      "Capesize_Index": "int64"
+    },
+    "date_range": {
+      "min": "2015-01-01",
+      "max": "2026-07-31"
+    },
+    "missing_values": 0,
+    "missing_by_col": {
+      "Date": 0,
+      "Handysize_Index": 0,
+      "Supramax_Index": 0,
+      "Panamax_Index": 0,
+      "Capesize_Index": 0
+    },
+    "duplicates": 0,
+    "task_type": "Multi-Output Time-Series / Class Elasticity",
+    "target_variable": [
+      "Handysize_Index",
+      "Supramax_Index",
+      "Panamax_Index",
+      "Capesize_Index"
+    ],
+    "useful_features": [
+      "Date"
+    ],
+    "notes": "Vessel class subindices with Capesize high beta (1.55) to Handysize defensive beta (0.65)."
+  },
+  "india_eastcoast_port_specs.csv": {
+    "filename": "india_eastcoast_port_specs.csv",
+    "rows": 7,
+    "columns": 13,
+    "column_names": [
+      "port_name",
+      "channel_depth_m",
+      "anchorage_depth_m",
+      "cargo_pier_depth_m",
+      "max_vessel_loa_m",
+      "max_vessel_beam_m",
+      "max_vessel_draft_m",
+      "harbor_size",
+      "harbor_type",
+      "pilotage_compulsory",
+      "solid_bulk_facilities",
+      "latitude",
+      "longitude"
+    ],
+    "dtypes": {
+      "port_name": "str",
+      "channel_depth_m": "float64",
+      "anchorage_depth_m": "float64",
+      "cargo_pier_depth_m": "float64",
+      "max_vessel_loa_m": "float64",
+      "max_vessel_beam_m": "float64",
+      "max_vessel_draft_m": "float64",
+      "harbor_size": "str",
+      "harbor_type": "str",
+      "pilotage_compulsory": "str",
+      "solid_bulk_facilities": "str",
+      "latitude": "float64",
+      "longitude": "float64"
+    },
+    "date_range": null,
+    "missing_values": 0,
+    "missing_by_col": {
+      "port_name": 0,
+      "channel_depth_m": 0,
+      "anchorage_depth_m": 0,
+      "cargo_pier_depth_m": 0,
+      "max_vessel_loa_m": 0,
+      "max_vessel_beam_m": 0,
+      "max_vessel_draft_m": 0,
+      "harbor_size": 0,
+      "harbor_type": 0,
+      "pilotage_compulsory": 0,
+      "solid_bulk_facilities": 0,
+      "latitude": 0,
+      "longitude": 0
+    },
+    "duplicates": 0,
+    "task_type": "Deterministic Vessel-Port Physical Constraints",
+    "target_variable": null,
+    "useful_features": [
+      "port_name",
+      "channel_depth_m",
+      "anchorage_depth_m",
+      "cargo_pier_depth_m",
+      "max_vessel_loa_m",
+      "max_vessel_beam_m",
+      "max_vessel_draft_m",
+      "harbor_size",
+      "harbor_type",
+      "pilotage_compulsory",
+      "solid_bulk_facilities",
+      "latitude",
+      "longitude"
+    ],
+    "notes": "Physical port constraints (max_draft_m, max_beam_m, max_loa_m, max_deadweight_dwt, night_navigation)."
+  },
+  "india_eastcoast_port_traffic_history.csv": {
+    "filename": "india_eastcoast_port_traffic_history.csv",
+    "rows": 75,
+    "columns": 11,
+    "column_names": [
+      "port",
+      "fiscal_year",
+      "overseas_unloaded",
+      "overseas_loaded",
+      "overseas_total",
+      "coastal_unloaded",
+      "coastal_loaded",
+      "coastal_total",
+      "total_unloaded",
+      "total_loaded",
+      "total_traffic"
+    ],
+    "dtypes": {
+      "port": "str",
+      "fiscal_year": "str",
+      "overseas_unloaded": "float64",
+      "overseas_loaded": "float64",
+      "overseas_total": "float64",
+      "coastal_unloaded": "float64",
+      "coastal_loaded": "float64",
+      "coastal_total": "float64",
+      "total_unloaded": "float64",
+      "total_loaded": "float64",
+      "total_traffic": "int64"
+    },
+    "date_range": null,
+    "missing_values": 0,
+    "missing_by_col": {
+      "port": 0,
+      "fiscal_year": 0,
+      "overseas_unloaded": 0,
+      "overseas_loaded": 0,
+      "overseas_total": 0,
+      "coastal_unloaded": 0,
+      "coastal_loaded": 0,
+      "coastal_total": 0,
+      "total_unloaded": 0,
+      "total_loaded": 0,
+      "total_traffic": 0
+    },
+    "duplicates": 0,
+    "task_type": "Time-Series Anomaly Detection & Throughput Trending",
+    "target_variable": "traffic_million_tonnes",
+    "useful_features": [
+      "year",
+      "port_name",
+      "traffic_million_tonnes"
+    ],
+    "notes": "Annual port throughput volumes across 6 major Indian East Coast ports."
+  },
+  "vessel_class_rate_ratio_reference.csv": {
+    "filename": "vessel_class_rate_ratio_reference.csv",
+    "rows": 4,
+    "columns": 2,
+    "column_names": [
+      "Unnamed: 0",
+      "avg_ratio_to_capesize"
+    ],
+    "dtypes": {
+      "Unnamed: 0": "str",
+      "avg_ratio_to_capesize": "float64"
+    },
+    "date_range": null,
+    "missing_values": 0,
+    "missing_by_col": {
+      "Unnamed: 0": 0,
+      "avg_ratio_to_capesize": 0
+    },
+    "duplicates": 0,
+    "task_type": "Deterministic Valuation Baseline",
+    "target_variable": "historical_rate_ratio_to_capesize",
+    "useful_features": [
+      "Unnamed: 0",
+      "avg_ratio_to_capesize"
+    ],
+    "notes": "Standard industry benchmark ratios relative to Capesize (Handysize 0.282, Supramax 0.489, Panamax 0.605)."
+  }
+}

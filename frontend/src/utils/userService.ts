@@ -1,4 +1,4 @@
-﻿import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "./firebase";
 import type { User as FirebaseUser } from "firebase/auth";
 
@@ -81,4 +81,40 @@ export async function getUserProfile(uid: string): Promise<AppUser | null> {
     console.warn("Firestore getUserProfile error:", err);
     return null;
   }
+}
+
+/**
+ * Persist the user's active voyage plan / cargo request in Cloud Firestore.
+ */
+export async function saveUserPlanToFirestore(uid: string, cargoRequest: any): Promise<void> {
+  if (!uid || uid.startsWith("demo-")) return;
+  try {
+    const userRef = doc(db, "users", uid);
+    await setDoc(
+      userRef,
+      {
+        activeCargoRequest: cargoRequest,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    console.warn("Could not persist voyage plan to Firestore:", err);
+  }
+}
+
+/**
+ * Fetch the user's saved active voyage plan from Cloud Firestore.
+ */
+export async function getUserPlanFromFirestore(uid: string): Promise<any | null> {
+  if (!uid || uid.startsWith("demo-")) return null;
+  try {
+    const snap = await getDoc(doc(db, "users", uid));
+    if (snap.exists()) {
+      return snap.data()?.activeCargoRequest || null;
+    }
+  } catch (err) {
+    console.warn("Could not fetch voyage plan from Firestore:", err);
+  }
+  return null;
 }

@@ -25,7 +25,7 @@ from app.utils.firebase_admin import get_firebase_app, initialize_firebase, is_m
 
 # Configure structured application logging
 logging.basicConfig(
-    level=logging.DEBUG if settings.DEBUG else logging.INFO,
+    level=logging.INFO,
     format="%(asctime)s | %(levelname)-7s | %(name)s:%(lineno)d - %(message)s",
 )
 logger = logging.getLogger("uvicorn.error")

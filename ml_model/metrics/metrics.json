@@ -1,0 +1,46 @@
+{
+  "benchmark_evaluation": {
+    "Naive_Persistence": {
+      "mean_mae": 405.6,
+      "mean_rmse": 554.86,
+      "mean_mape": 21.95,
+      "mean_r2": 0.604,
+      "mean_directional_accuracy": 0.0
+    },
+    "Seasonal_Naive": {
+      "mean_mae": 1271.5,
+      "mean_rmse": 1594.59,
+      "mean_mape": 71.53,
+      "mean_r2": -1.303,
+      "mean_directional_accuracy": 51.43
+    },
+    "Ridge": {
+      "mean_mae": 455.61,
+      "mean_rmse": 604.39,
+      "mean_mape": 28.13,
+      "mean_r2": 0.515,
+      "mean_directional_accuracy": 53.47
+    },
+    "LinearRegression": {
+      "mean_mae": 477.15,
+      "mean_rmse": 624.64,
+      "mean_mape": 30.55,
+      "mean_r2": 0.447,
+      "mean_directional_accuracy": 54.69
+    },
+    "RandomForest": {
+      "mean_mae": 629.49,
+      "mean_rmse": 883.97,
+      "mean_mape": 31.85,
+      "mean_r2": 0.307,
+      "mean_directional_accuracy": 53.47
+    },
+    "GradientBoosting": {
+      "mean_mae": 636.97,
+      "mean_rmse": 888.64,
+      "mean_mape": 31.23,
+      "mean_r2": 0.329,
+      "mean_directional_accuracy": 58.37
+    }
+  }
+}

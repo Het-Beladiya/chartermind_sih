@@ -18,7 +18,7 @@ logger = logging.getLogger("uvicorn.error")
 # Create Async Engine for PostgreSQL with connection pooling
 engine: AsyncEngine = create_async_engine(
     settings.DATABASE_URL,
-    echo=settings.DEBUG,
+    echo=False,
     future=True,
     pool_pre_ping=True,
     pool_size=10,

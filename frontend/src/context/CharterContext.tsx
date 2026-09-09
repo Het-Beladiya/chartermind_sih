@@ -11,11 +11,18 @@ import {
   User as FirebaseUser,
 } from 'firebase/auth';
 import { auth } from '../utils/firebase';
-import { syncUserToFirestore } from '../utils/userService';
+
+import {
+  syncUserToFirestore,
+  saveUserPlanToFirestore,
+  getUserPlanFromFirestore,
+} from '../utils/userService';
 import {
   createCargoRequest,
   generateVoyagePlan,
   getVoyagePlans,
+  fetchQuickForecast,
+  QuickForecastPayload,
 } from '../utils/api';
 import {
   CargoRequest,
@@ -32,6 +39,7 @@ import {
   AlertItem,
   VESSEL_SPECS,
   PORT_SPECS,
+  ROUTE_BASELINE_RATES,
   recommendVessels,
   calculateVoyageCost,
   predictIdleTime,
@@ -206,7 +214,15 @@ const CharterContext = createContext<CharterContextType | undefined>(undefined);
 export const CharterProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [activeTab, setActiveTab] = useState<NavigationTab>('voyage-planner');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [currencyUnit, setCurrencyUnit] = useState<'USD' | 'INR'>('USD');
+  // Persistent Currency Unit
+  const [currencyUnit, setCurrencyUnit] = useState<'USD' | 'INR'>(() => {
+    try {
+      const saved = localStorage.getItem('chartermind_currency_unit');
+      if (saved === 'USD' || saved === 'INR') return saved;
+    } catch {}
+    return 'USD';
+  });
+
   const [forecastHorizon, setForecastHorizon] = useState<7 | 14 | 30 | 60>(30);
 
   // Authentication State with persistent storage detection
@@ -232,9 +248,43 @@ export const CharterProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   });
 
-  const [cargoRequest, setCargoRequest] = useState<CargoRequest>(DEFAULT_CARGO_REQUEST);
-  const [selectedPortId, setSelectedPortIdState] = useState<DestinationPort>('Paradip');
-  const [selectedVesselId, setSelectedVesselIdState] = useState<VesselClassId>('panamax');
+  // Persistent Cargo Request (Preserved across browser refreshes)
+  const [cargoRequest, setCargoRequest] = useState<CargoRequest>(() => {
+    try {
+      const saved = localStorage.getItem('chartermind_cargo_request');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && parsed.origin && parsed.destinationPort) {
+          return { ...DEFAULT_CARGO_REQUEST, ...parsed };
+        }
+      }
+    } catch {}
+    return DEFAULT_CARGO_REQUEST;
+  });
+
+  const [selectedPortId, setSelectedPortIdState] = useState<DestinationPort>(() => {
+    try {
+      const saved = localStorage.getItem('chartermind_cargo_request');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.destinationPort && (parsed.destinationPort in PORT_SPECS)) {
+          return parsed.destinationPort;
+        }
+      }
+    } catch {}
+    return 'Paradip';
+  });
+
+  const [selectedVesselId, setSelectedVesselIdState] = useState<VesselClassId>(() => {
+    try {
+      const saved = localStorage.getItem('chartermind_selected_vessel_id');
+      if (saved && (saved in VESSEL_SPECS)) {
+        return saved as VesselClassId;
+      }
+    } catch {}
+    return 'panamax';
+  });
+
   const [simulatorOverrides, setSimulatorOverrides] = useState<SimulatorOverrides>(DEFAULT_SIMULATOR_OVERRIDES);
   const [alerts, setAlerts] = useState<AlertItem[]>(INITIAL_ALERTS);
   const [savedPlans, setSavedPlans] = useState<SavedVoyagePlan[]>([]);
@@ -243,6 +293,33 @@ export const CharterProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     setSelectedPortIdState(cargoRequest.destinationPort);
   }, [cargoRequest.destinationPort]);
+
+  // Persist cargoRequest to localStorage & Firestore whenever updated
+  useEffect(() => {
+    try {
+      localStorage.setItem('chartermind_cargo_request', JSON.stringify(cargoRequest));
+      if (user?.id && !user.id.startsWith('demo-')) {
+        saveUserPlanToFirestore(user.id, cargoRequest);
+      }
+    } catch (err) {
+      console.warn('Could not persist cargo request:', err);
+    }
+  }, [cargoRequest, user?.id]);
+
+  // Persist selected vessel class
+  useEffect(() => {
+    try {
+      localStorage.setItem('chartermind_selected_vessel_id', selectedVesselId);
+    } catch {}
+  }, [selectedVesselId]);
+
+  // Persist currency preference
+  useEffect(() => {
+    try {
+      localStorage.setItem('chartermind_currency_unit', currencyUnit);
+    } catch {}
+  }, [currencyUnit]);
+
 
   const selectedPort = PORT_SPECS[selectedPortId] || PORT_SPECS.Paradip;
   const selectedVessel = VESSEL_SPECS[selectedVesselId] || VESSEL_SPECS.panamax;
@@ -294,17 +371,77 @@ export const CharterProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return calculateVoyageCost(cargoRequest, selectedVessel, selectedPort, idlePrediction, riskScores, simulatorOverrides);
   }, [cargoRequest, selectedVessel, selectedPort, idlePrediction, riskScores, simulatorOverrides]);
 
-  // 5. Freight Forecast Series (Instant local calculation)
-  const forecast = useMemo(() => {
+  // 5 & 6. Freight Forecast Series & Optimal Charter Window (State initialized with local calculation, synchronized with backend ML API)
+  const [forecast, setForecast] = useState<ForecastResult>(() => {
     const route = `${cargoRequest.origin} → ${selectedPort.name}`;
-    const baseRate = voyageCost.freightRatePerMT;
+    const baseRate = ROUTE_BASELINE_RATES[cargoRequest.origin]?.[cargoRequest.destinationPort] || 18.0;
     return generateForecast(route, baseRate, forecastHorizon, simulatorOverrides);
-  }, [cargoRequest.origin, selectedPort.name, voyageCost.freightRatePerMT, forecastHorizon, simulatorOverrides]);
+  });
 
-  // 6. Optimal Charter Window (Instant local calculation)
-  const optimalWindow = useMemo(() => {
-    return determineOptimalWindow(forecast, cargoRequest, riskScores);
-  }, [forecast, cargoRequest, riskScores]);
+  const [optimalWindow, setOptimalWindow] = useState<OptimalCharterWindowResult>(() => {
+    const route = `${cargoRequest.origin} → ${selectedPort.name}`;
+    const baseRate = ROUTE_BASELINE_RATES[cargoRequest.origin]?.[cargoRequest.destinationPort] || 18.0;
+    const initialForecast = generateForecast(route, baseRate, forecastHorizon, simulatorOverrides);
+    const initialRisk = calculateRiskScores(cargoRequest, selectedVessel, selectedPort, simulatorOverrides);
+    return determineOptimalWindow(initialForecast, cargoRequest, initialRisk);
+  });
+
+  // Query live ML forecasting endpoint from FastAPI backend with automatic fallback to local calculation engine
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadForecast = async () => {
+      try {
+        const payload: QuickForecastPayload = {
+          origin: cargoRequest.origin,
+          destination_port: selectedPort.id || cargoRequest.destinationPort,
+          cargo_type: cargoRequest.cargoType,
+          cargo_quantity_mt: cargoRequest.cargoQuantity,
+          preferred_vessel_type:
+            cargoRequest.preferredVesselType && cargoRequest.preferredVesselType !== 'Let AI decide'
+              ? cargoRequest.preferredVesselType
+              : (selectedVessel?.id || 'panamax'),
+          horizon_days: forecastHorizon,
+          simulator_overrides: {
+            congestion: simulatorOverrides.congestion,
+            weather: simulatorOverrides.weather,
+            freight_rate_offset_percent: simulatorOverrides.freightRateOffsetPercent,
+            vessel_availability: simulatorOverrides.vesselAvailability,
+          },
+        };
+
+        const res = await fetchQuickForecast(payload);
+        if (!isCancelled && res?.forecast && res?.optimalWindow) {
+          setForecast(res.forecast);
+          setOptimalWindow(res.optimalWindow);
+        }
+      } catch (err) {
+        console.warn('[CharterContext] Backend ML forecast API unreachable, applying local offline fallback:', err);
+        if (!isCancelled) {
+          const route = `${cargoRequest.origin} → ${selectedPort.name}`;
+          const baseRate = voyageCost.freightRatePerMT;
+          const fallbackForecast = generateForecast(route, baseRate, forecastHorizon, simulatorOverrides);
+          const fallbackWindow = determineOptimalWindow(fallbackForecast, cargoRequest, riskScores);
+          setForecast(fallbackForecast);
+          setOptimalWindow(fallbackWindow);
+        }
+      }
+    };
+
+    loadForecast();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    cargoRequest,
+    selectedPort,
+    selectedVessel,
+    forecastHorizon,
+    simulatorOverrides,
+    voyageCost.freightRatePerMT,
+    riskScores,
+  ]);
 
   // 7. Contract Strategy (Instant local calculation)
   const contractComparison = useMemo(() => {
@@ -440,7 +577,18 @@ export const CharterProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setIsAuthenticated(true);
     localStorage.setItem('chartermind_auth_user', JSON.stringify(authUser));
     fetchSavedPlans();
+
+    // Restore user's saved active plan from Firestore if available
+    if (firebaseUser?.uid && !firebaseUser.uid.startsWith('demo-')) {
+      getUserPlanFromFirestore(firebaseUser.uid).then((savedPlan) => {
+        if (savedPlan && savedPlan.origin && savedPlan.destinationPort) {
+          setCargoRequest((prev) => ({ ...prev, ...savedPlan }));
+          setSelectedPortIdState(savedPlan.destinationPort);
+        }
+      });
+    }
   }, [fetchSavedPlans]);
+
 
   // Watch Firebase auth state — runs once on mount
   useEffect(() => {
@@ -596,12 +744,19 @@ export const CharterProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       localStorage.removeItem('chartermind_auth_user');
       localStorage.removeItem('chartermind_token');
+      localStorage.removeItem('chartermind_cargo_request');
+      localStorage.removeItem('chartermind_selected_vessel_id');
       sessionStorage.removeItem('chartermind_auth_user');
+      sessionStorage.removeItem('chartermind_token');
     } catch {
       // ignore storage errors
     }
+    setCargoRequest(DEFAULT_CARGO_REQUEST);
+    setSelectedPortIdState('Paradip');
+    setSelectedVesselIdState('panamax');
     setActiveTab('voyage-planner');
   };
+
 
   const value: CharterContextType = {
     activeTab,
