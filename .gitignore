@@ -1,4 +1,4 @@
-﻿# Dependencies
+# Dependencies
 node_modules/
 frontend/node_modules/
 
@@ -30,6 +30,11 @@ backend/serviceAccount.json
 .DS_Store
 Thumbs.db
 
-.env 
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+.env
 *.env
 .env.*

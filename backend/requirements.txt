@@ -6,9 +6,10 @@ uvicorn[standard]>=0.30.0
 pydantic>=2.7.0
 pydantic-settings>=2.2.0
 
-# Database & ORM (Async SQLAlchemy 2.x & PostgreSQL)
+# Database & ORM (Async SQLAlchemy 2.x, PostgreSQL & SQLite)
 sqlalchemy>=2.0.30
 asyncpg>=0.29.0
+aiosqlite>=0.20.0
 alembic>=1.13.0
 greenlet>=3.0.0
 

@@ -1,4 +1,6 @@
 import asyncio
+import base64
+import hashlib
 import json
 import logging
 import os
@@ -116,30 +118,83 @@ def is_mock_mode() -> bool:
     return _is_mock_mode
 
 
+def _decode_unverified_jwt(token: str) -> Optional[Dict[str, Any]]:
+    """
+    Safely decode JWT payload without cryptographic verification.
+    Used in development mock mode when Firebase service account credentials
+    are not configured, allowing real Firebase client tokens to work seamlessly.
+    """
+    try:
+        parts = token.strip().split(".")
+        if len(parts) != 3:
+            return None
+        payload_b64 = parts[1]
+        padding = 4 - (len(payload_b64) % 4)
+        if padding != 4:
+            payload_b64 += "=" * padding
+        payload_bytes = base64.urlsafe_b64decode(payload_b64)
+        data = json.loads(payload_bytes.decode("utf-8"))
+        if isinstance(data, dict):
+            return data
+    except Exception as err:
+        logger.debug(f"Failed to decode unverified JWT payload: {err}")
+    return None
+
+
 def verify_id_token_sync(token: str) -> Dict[str, Any]:
-    """Synchronously verify Firebase ID token using firebase_admin.auth."""
-    if _is_mock_mode or (settings.DEBUG and token.startswith("demo-")):
+    """Synchronously verify Firebase ID token using firebase_admin.auth with safe mock mode fallback."""
+    clean_token = token.replace("Bearer ", "").replace("bearer ", "").strip()
+
+    if _is_mock_mode or (settings.DEBUG and clean_token.startswith("demo-")):
         logger.debug("Verifying token via development mock fallback.")
-        raw_val = token.replace("demo-", "").replace("Bearer ", "").strip()
-        if "@" in raw_val:
+
+        # 1. Attempt to decode if token is a standard 3-part Firebase JWT
+        jwt_payload = _decode_unverified_jwt(clean_token)
+        if jwt_payload:
+            uid = jwt_payload.get("user_id") or jwt_payload.get("sub")
+            if uid:
+                email = jwt_payload.get("email")
+                name = jwt_payload.get("name")
+                if not name and email:
+                    name = email.split("@")[0].replace(".", " ").title()
+                picture = jwt_payload.get("picture") or "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
+
+                safe_uid = str(uid)[:128]
+                safe_email = str(email)[:254] if email else f"{safe_uid[:20]}@maritime.local"
+
+                return {
+                    "uid": safe_uid,
+                    "email": safe_email,
+                    "name": name or "Maritime User",
+                    "picture": picture,
+                }
+
+        # 2. Handle demo or opaque fallback tokens
+        raw_val = clean_token.replace("demo-", "").strip()
+        if len(raw_val) > 60 or (len(clean_token) > 100 and "." in clean_token):
+            # Long token or unparseable JWT fallback: hash deterministically to 32 hex chars
+            safe_id = hashlib.sha256(raw_val.encode()).hexdigest()[:32]
+            email = f"user_{safe_id[:12]}@maritime-sih.in"
+            safe_name = f"Maritime User {safe_id[:6].upper()}"
+        elif "@" in raw_val:
             user_part = raw_val.split("@")[0]
-            email = raw_val.lower()
-            safe_id = user_part.replace(".", "_")
+            email = raw_val.lower()[:254]
+            safe_id = user_part.replace(".", "_")[:64]
             safe_name = user_part.replace(".", " ").title()
         else:
-            safe_id = raw_val or "demo_user"
+            safe_id = (raw_val or "demo_user")[:64]
             safe_name = safe_id.replace("-", " ").replace(".", " ").title()
-            email = f"{safe_id.lower()}@maritime-sih.in"
+            email = f"{safe_id.lower()}@maritime-sih.in"[:254]
 
         return {
-            "uid": f"firebase_{safe_id}",
+            "uid": f"firebase_{safe_id}"[:128],
             "email": email,
             "name": safe_name,
             "picture": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80",
         }
 
     app = get_firebase_app()
-    return firebase_auth.verify_id_token(token, app=app, check_revoked=True)
+    return firebase_auth.verify_id_token(clean_token, app=app, check_revoked=True)
 
 
 async def verify_id_token_async(token: str) -> Dict[str, Any]:

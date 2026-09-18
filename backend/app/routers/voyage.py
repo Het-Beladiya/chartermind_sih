@@ -12,17 +12,28 @@ from app.models.cargo_request import CargoRequest
 from app.models.user import User
 from app.models.voyage_plan import VoyagePlan
 from app.schemas.cargo import CargoRequestResponse
+from app.schemas.evaluation import (
+    VoyageEvaluationRequest,
+    VoyageEvaluationResponse,
+)
 from app.schemas.voyage import (
     SimulatorOverrides,
     VoyageCostBreakdown,
     VoyagePlanRequest,
     VoyagePlanResponse,
 )
+from app.services.contract_advisor import compare_contracts
 from app.services.cost_calculator import calculate_voyage_cost
+from app.services.forecast_engine import determine_optimal_window, generate_forecast
 from app.services.idle_predictor import predict_idle_time
 from app.services.risk_engine import calculate_risk_scores
 from app.services.vessel_scorer import recommend_vessels
-from app.utils.constants import PORT_SPECS, VESSEL_SPECS
+from app.utils.constants import (
+    PORT_SPECS,
+    ROUTE_BASELINE_RATES,
+    VESSEL_RATE_MULTIPLIERS,
+    VESSEL_SPECS,
+)
 
 router = APIRouter(prefix="/voyage", tags=["Voyage Planner & Optimization"])
 
@@ -80,6 +91,122 @@ def _run_voyage_pipeline(
         "idle_result": idle_result,
         "cost_breakdown": cost_breakdown,
     }
+
+
+class EvaluatedCargo:
+    """Lightweight in-memory cargo adapter to interface with domain calculation engines."""
+
+    def __init__(self, req: VoyageEvaluationRequest):
+        self.cargo_type = req.cargo_type or "Coal"
+        self.cargo_quantity_mt = Decimal(str(req.cargo_quantity_mt))
+        self.origin_country = req.origin_country or "Indonesia"
+        self.destination_port = req.destination_port or "Paradip"
+        self.required_delivery_date = req.required_delivery_date
+        self.loading_window_start = req.loading_window_start
+        self.loading_window_end = req.loading_window_end
+        self.discharge_window_start = req.discharge_window_start
+        self.discharge_window_end = req.discharge_window_end
+        self.preferred_vessel_type = req.preferred_vessel_type
+        self.max_acceptable_freight = (
+            Decimal(str(req.max_acceptable_freight))
+            if req.max_acceptable_freight is not None
+            else None
+        )
+        self.number_of_voyages = req.number_of_voyages or 1
+        self.contract_duration = req.contract_duration or "Single voyage"
+        self.priority = req.priority or "Balanced"
+
+
+@router.post(
+    "/evaluate",
+    response_model=VoyageEvaluationResponse,
+    summary="Real-time multi-engine voyage evaluation without database persistence",
+)
+async def evaluate_voyage(
+    req: VoyageEvaluationRequest,
+) -> VoyageEvaluationResponse:
+    """
+    Real-time in-memory calculation endpoint powering the frontend interactive simulator.
+    Evaluates:
+    1. Multi-vessel scoring & ranking across Capesize, Panamax, Supramax, and Handysize.
+    2. Port navigational compatibility (draft, LOA, beam envelopes and safety margins).
+    3. Multi-vector composite risk scores (market, port, weather, vessel, commodity).
+    4. Anchorage turnaround & idle waiting hours prediction.
+    5. Full landed voyage cost accounting (USD & INR breakdowns, per MT metrics).
+    6. Spot vs CoA contract structure trade-offs.
+    7. Machine learning freight rate forecasting & optimal chartering laycan advisory.
+    """
+    port = PORT_SPECS.get(req.destination_port) or list(PORT_SPECS.values())[0]
+    temp_cargo = EvaluatedCargo(req)
+
+    # 1. Recommend & Rank Vessels
+    scored_vessels = recommend_vessels(temp_cargo, port, req.simulator_overrides)
+    top_recommended = scored_vessels[0] if scored_vessels else None
+
+    # 2. Final Vessel Choice (User override or algorithm recommendation)
+    selected_breakdown = top_recommended
+    if req.selected_vessel_id and scored_vessels:
+        matched = next(
+            (s for s in scored_vessels if s.vessel.id.lower() == req.selected_vessel_id.lower()),
+            None,
+        )
+        if matched:
+            selected_breakdown = matched
+
+    vessel = selected_breakdown.vessel if selected_breakdown else list(VESSEL_SPECS.values())[1]
+
+    # 3. Multi-vector risk assessment
+    risk_scores = calculate_risk_scores(temp_cargo, vessel, port, req.simulator_overrides)
+
+    # 4. Idle turnaround & waiting hours
+    weather = req.simulator_overrides.weather if req.simulator_overrides else "Normal"
+    congestion = req.simulator_overrides.congestion if req.simulator_overrides else port.congestion
+    idle_result = predict_idle_time(
+        port,
+        vessel,
+        weather,
+        congestion,
+        selected_breakdown.compatibility if selected_breakdown else None,
+    )
+
+    # 5. Full voyage cost accounting
+    cost_breakdown = calculate_voyage_cost(
+        temp_cargo, vessel, port, idle_result, risk_scores, req.simulator_overrides
+    )
+
+    # 6. Spot vs CoA contract comparison
+    contract_comp = compare_contracts(temp_cargo, vessel, cost_breakdown, risk_scores)
+
+    # 7. ML freight rate forecast
+    route_name = f"{req.origin_country} → {req.destination_port}"
+    base_rate = ROUTE_BASELINE_RATES.get(req.origin_country, {}).get(
+        req.destination_port, 18.0
+    )
+    mult = VESSEL_RATE_MULTIPLIERS.get(vessel.id.lower(), 1.0)
+    adjusted_base_rate = round(base_rate * mult, 2)
+
+    forecast_result = generate_forecast(
+        route=route_name,
+        base_rate=adjusted_base_rate,
+        horizon_days=req.horizon_days or 30,
+        overrides=req.simulator_overrides,
+        vessel_class=vessel.name,
+        cargo_type=req.cargo_type or "Coal",
+    )
+
+    # 8. Optimal charter window advisory
+    optimal_window = determine_optimal_window(forecast_result, temp_cargo, risk_scores)
+
+    return VoyageEvaluationResponse(
+        vessel_recommendations=scored_vessels,
+        top_vessel_breakdown=selected_breakdown,
+        idle_prediction=idle_result,
+        risk_scores=risk_scores,
+        voyage_cost=cost_breakdown,
+        contract_comparison=contract_comp,
+        forecast=forecast_result,
+        optimal_window=optimal_window,
+    )
 
 
 @router.post(

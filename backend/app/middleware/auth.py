@@ -87,29 +87,48 @@ async def get_current_user(
 
     email = decoded_token.get("email") or f"{uid}@maritime.local"
     name = decoded_token.get("name")
-    avatar_url = decoded_token.get("picture")
+    # Enforce database column width limits
+    uid = str(uid)[:128]
+    email = str(email)[:254]
 
     # Query PostgreSQL database for user
     stmt = select(User).where(User.firebase_uid == uid)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 
-    # First login auto-registration
+    # First login auto-registration or re-linking
     if user is None:
-        logger.info(f"First login detected for {email} (Firebase UID: {uid}). Auto-registering in PostgreSQL...")
-        user = User(
-            firebase_uid=uid,
-            email=email,
-            name=name or email.split("@")[0].replace(".", " ").title(),
-            avatar_url=avatar_url,
-            company="Maritime Logistics Corp",
-            role="charterer",
-            is_active=True,
-        )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
-        logger.info(f"User {user.email} successfully provisioned with ID {user.id}")
+        # Check if user already exists by email
+        if email:
+            stmt_email = select(User).where(User.email == email)
+            res_email = await db.execute(stmt_email)
+            user = res_email.scalar_one_or_none()
+
+        if user is not None:
+            # Re-link existing user record to the current Firebase UID
+            user.firebase_uid = uid
+            if name and not user.name:
+                user.name = name
+            if avatar_url and not user.avatar_url:
+                user.avatar_url = avatar_url
+            await db.commit()
+            await db.refresh(user)
+            logger.info(f"Existing user account {user.email} re-linked to Firebase UID: {uid}")
+        else:
+            logger.info(f"First login detected for {email} (Firebase UID: {uid}). Auto-registering in PostgreSQL...")
+            user = User(
+                firebase_uid=uid,
+                email=email,
+                name=name or email.split("@")[0].replace(".", " ").title(),
+                avatar_url=avatar_url,
+                company="Maritime Logistics Corp",
+                role="charterer",
+                is_active=True,
+            )
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+            logger.info(f"User {user.email} successfully provisioned with ID {user.id}")
     else:
         logger.debug(f"Authenticated user: {user.email} (ID: {user.id})")
 

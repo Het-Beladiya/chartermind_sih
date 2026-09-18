@@ -45,6 +45,10 @@ from app.schemas.vessel import (
     VesselScoreBreakdown,
     VesselSpec,
 )
+from app.schemas.evaluation import (
+    VoyageEvaluationRequest,
+    VoyageEvaluationResponse,
+)
 from app.schemas.voyage import (
     CongestionLevel,
     RiskBucket,

@@ -15,12 +15,16 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/sih_freight_db"
 
     # Firebase Admin SDK Configuration
-    FIREBASE_PROJECT_ID: str = "your-firebase-project-id"
+    FIREBASE_PROJECT_ID: str = "chartermind-417f3"
     FIREBASE_SERVICE_ACCOUNT_PATH: str = "serviceAccount.json"
     FIREBASE_SERVICE_ACCOUNT_JSON: Optional[str] = None
 
     # CORS Allowed Origins (Comma-separated string)
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
+
+    # Machine Learning Model & Data Artifact Paths (Optional override for Docker/Cloud)
+    ML_MODEL_DIR: Optional[str] = None
+    ML_DATA_DIR: Optional[str] = None
 
     @property
     def API_V1_PREFIX(self) -> str:

@@ -222,3 +222,13 @@ async def list_routes(
         for dest in dest_map.keys():
             routes.append(f"{origin} → {dest}")
     return routes
+
+
+@router.get(
+    "/model-info",
+    summary="Inspect trained ML model metadata, hyperparameters, and validation benchmarks",
+)
+async def get_model_info() -> Dict[str, Any]:
+    """Inspect Ridge Regression hyperparameters, feature importances, and walk-forward cross-validation benchmarks."""
+    from app.services.forecast_engine import MLModelManager
+    return MLModelManager.get_instance().metadata

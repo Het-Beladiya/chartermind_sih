@@ -81,8 +81,9 @@ pip install -r requirements.txt
 :: 5. Run independent CLI verification (Loads model & tests real inference)
 python test_model.py
 
-:: 6. Launch the standalone FastAPI backend
-uvicorn app.main:app --reload --port 8000
+:: 6. Launch the standalone ML Microservice (Port 8001)
+python run.py --dev
+:: (Or via uvicorn: uvicorn app.main:app --reload --port 8001)
 ```
 
 ### Linux / macOS (Terminal)
@@ -104,8 +105,9 @@ pip install -r requirements.txt
 # 5. Run independent CLI verification
 python3 test_model.py
 
-# 6. Launch the standalone FastAPI backend
-uvicorn app.main:app --reload --port 8000
+# 6. Launch the standalone ML Microservice (Port 8001)
+python3 run.py --dev
+# (Or via uvicorn: uvicorn app.main:app --reload --port 8001)
 ```
 
 ---

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from app.config import settings
-from app.database import Base
+from app.models.base import Base
 from app.models import *  # noqa: F401, F403 Ensure all models are registered
 
 # Alembic Config object
@@ -18,8 +18,11 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Overwrite sqlalchemy.url with the one from application settings
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+import os
+
+# Overwrite sqlalchemy.url with ALEMBIC_DB_URL if set, else from application settings
+target_db_url = os.getenv("ALEMBIC_DB_URL") or settings.DATABASE_URL
+config.set_main_option("sqlalchemy.url", target_db_url)
 
 target_metadata = Base.metadata
 
@@ -48,12 +51,18 @@ def do_run_migrations(connection: Connection) -> None:
 async def run_async_migrations() -> None:
     """Run migrations in 'online' mode using AsyncEngine."""
     configuration = config.get_section(config.config_ini_section) or {}
-    configuration["sqlalchemy.url"] = settings.DATABASE_URL
+    db_url = os.getenv("ALEMBIC_DB_URL") or settings.DATABASE_URL
+    configuration["sqlalchemy.url"] = db_url
+
+    connect_args = {}
+    if db_url.startswith("sqlite"):
+        connect_args["check_same_thread"] = False
 
     connectable = async_engine_from_config(
         configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=connect_args,
     )
 
     async with connectable.connect() as connection:

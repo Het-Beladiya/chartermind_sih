@@ -8,6 +8,7 @@ import joblib
 import numpy as np
 import pandas as pd
 
+from app.config import settings
 from app.schemas.cargo import CargoRequestBase, CargoRequestResponse
 from app.schemas.forecast import (
     CharterRecommendation,
@@ -41,12 +42,74 @@ FEATURE_COLUMNS = [
     "cos_month",
 ]
 
-# Path to trained model artifacts in ml_model directory
-BASE_PROJECT_DIR = Path(__file__).resolve().parents[3]
-MODEL_PATH = BASE_PROJECT_DIR / "ml_model" / "models" / "bdi_forecast_model.joblib"
-METADATA_PATH = BASE_PROJECT_DIR / "ml_model" / "models" / "model_metadata.json"
-VESSEL_MODELS_PATH = BASE_PROJECT_DIR / "ml_model" / "models" / "vessel_class_models.json"
-HISTORICAL_DATA_PATH = BASE_PROJECT_DIR / "ml_model" / "data" / "bdi_index_monthly.csv"
+def _resolve_ml_artifact(filename: str, subfolder: str = "models") -> Path:
+    """
+    Locates an ML model or data artifact with multi-tier discovery:
+    1. Explicit path from settings.ML_MODEL_DIR or settings.ML_DATA_DIR (if configured via env).
+    2. Bundled package artifacts inside backend/app/ml_artifacts/.
+    3. Dynamic upward directory traversal searching for the monorepo ml_model/<subfolder>/ directory.
+    4. Current working directory relative paths (./ml_model, ./models, etc.).
+    """
+    # 1. Check environment variable override
+    env_dir = settings.ML_DATA_DIR if subfolder == "data" else settings.ML_MODEL_DIR
+    if env_dir:
+        candidate = Path(env_dir) / filename
+        if candidate.exists():
+            return candidate
+
+    # 2. Check bundled package artifacts (in backend/app/ml_artifacts/)
+    bundled = Path(__file__).resolve().parent.parent / "ml_artifacts" / filename
+    if bundled.exists():
+        return bundled
+
+    # 3. Dynamic upward search for monorepo ml_model directory
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        candidate = parent / "ml_model" / subfolder / filename
+        if candidate.exists():
+            return candidate
+        candidate_models = parent / "models" / filename
+        if candidate_models.exists():
+            return candidate_models
+
+    # 4. Fallback to CWD candidates
+    cwd = Path.cwd()
+    for candidate in [
+        cwd / "ml_model" / subfolder / filename,
+        cwd / "backend" / "app" / "ml_artifacts" / filename,
+        cwd / "app" / "ml_artifacts" / filename,
+        cwd / "models" / filename,
+    ]:
+        if candidate.exists():
+            return candidate
+
+    # Default to bundled path for predictable logging
+    return bundled
+
+
+class RidgeInferenceWrapper:
+    """
+    Lightweight, pure-Python/NumPy linear model inference engine.
+    Used when serialized .joblib binaries cannot be unpickled (e.g. OS security policies,
+    minimal container runtimes without compiled C-extensions, or scikit-learn version differences).
+    """
+
+    def __init__(self, weights: Dict[str, float], intercept: float = 0.0):
+        self.weights = {k: float(v) for k, v in weights.items()}
+        self.intercept = float(intercept)
+
+    def predict(self, df: pd.DataFrame) -> np.ndarray:
+        predictions = []
+        for _, row in df.iterrows():
+            pred = self.intercept
+            for feat, weight in self.weights.items():
+                if feat in row:
+                    try:
+                        pred += weight * float(row[feat])
+                    except (ValueError, TypeError):
+                        pass
+            predictions.append(pred)
+        return np.array(predictions)
 
 
 class MLModelManager:
@@ -68,28 +131,59 @@ class MLModelManager:
         return cls._instance
 
     def load_model(self):
+        # 1. Load Metadata (contains model hyperparameters, metrics, and learned feature weights)
         try:
-            if MODEL_PATH.exists():
-                self.model = joblib.load(MODEL_PATH)
-                logger.info(f"Loaded ML Freight Model from: {MODEL_PATH}")
-            else:
-                logger.warning(f"ML Model binary not found at {MODEL_PATH}. Operating in fallback mode.")
-
-            if METADATA_PATH.exists():
-                with open(METADATA_PATH) as f:
+            metadata_path = _resolve_ml_artifact("model_metadata.json", "models")
+            if metadata_path.exists():
+                with open(metadata_path, encoding="utf-8") as f:
                     self.metadata = json.load(f)
+                    logger.debug(f"Loaded ML model metadata from: {metadata_path}")
+        except Exception as err:
+            logger.warning(f"Notice: Could not load model_metadata.json ({err})")
 
-            if VESSEL_MODELS_PATH.exists():
-                with open(VESSEL_MODELS_PATH) as f:
+        # 2. Load Vessel Subindex Models
+        try:
+            vessel_models_path = _resolve_ml_artifact("vessel_class_models.json", "models")
+            if vessel_models_path.exists():
+                with open(vessel_models_path, encoding="utf-8") as f:
                     self.vessel_models = json.load(f).get("models", {})
+                    logger.debug(f"Loaded vessel class elasticity models from: {vessel_models_path}")
+        except Exception as err:
+            logger.warning(f"Notice: Could not load vessel_class_models.json ({err})")
 
-            if HISTORICAL_DATA_PATH.exists():
-                df = pd.read_csv(HISTORICAL_DATA_PATH)
+        # 3. Load Historical Baltic Dry Index Data
+        try:
+            historical_data_path = _resolve_ml_artifact("bdi_index_monthly.csv", "data")
+            if historical_data_path.exists():
+                df = pd.read_csv(historical_data_path)
                 if "Price" in df.columns:
                     clean_price = (
                         df["Price"].astype(str).str.replace(",", "").astype(float)
                     )
                     self.historical_bdi = clean_price.tolist()
+                    logger.debug(f"Loaded {len(self.historical_bdi)} historical BDI observations from: {historical_data_path}")
+        except Exception as err:
+            logger.warning(f"Notice: Could not load historical BDI series ({err})")
+
+        # 4. Load Primary Ridge Forecasting Model (with lightweight fallback)
+        try:
+            model_path = _resolve_ml_artifact("bdi_forecast_model.joblib", "models")
+            if model_path.exists():
+                try:
+                    self.model = joblib.load(model_path)
+                    logger.info(f"Loaded ML Freight Model from: {model_path}")
+                except Exception as joblib_err:
+                    logger.warning(
+                        f"Joblib binary unpickling notice ({joblib_err}). "
+                        f"Falling back to zero-dependency Ridge inference engine from metadata."
+                    )
+                    if self.metadata and "feature_importances" in self.metadata:
+                        self.model = RidgeInferenceWrapper(
+                            weights=self.metadata["feature_importances"]
+                        )
+                        logger.info("Initialized RidgeInferenceWrapper with calibrated model weights.")
+            else:
+                logger.warning(f"ML Model binary not found at {model_path}. Operating in fallback mode.")
         except Exception as err:
             logger.error(f"Error initializing ML model manager: {err}")
 

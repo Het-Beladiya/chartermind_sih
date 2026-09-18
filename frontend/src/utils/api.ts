@@ -3,6 +3,15 @@ import {
   ForecastResult,
   OptimalCharterWindowResult,
   SimulatorOverrides,
+  VesselScoreBreakdown,
+  VesselSpec,
+  PortCompatibilityResult,
+  VoyageCostBreakdown,
+  IdlePredictionResult,
+  RiskEngineResult,
+  ContractComparisonResult,
+  PortSpec,
+  VesselClassId,
 } from '../types';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
@@ -219,6 +228,300 @@ export async function runSimulation(cargoRequestId: string, overrides: any) {
   });
 }
 
+export interface VoyageEvaluationPayload {
+  cargo_type: string;
+  cargo_quantity_mt: number;
+  origin_country: string;
+  destination_port: string;
+  required_delivery_date?: string | null;
+  loading_window_start?: string | null;
+  loading_window_end?: string | null;
+  discharge_window_start?: string | null;
+  discharge_window_end?: string | null;
+  preferred_vessel_type?: string | null;
+  priority?: string | null;
+  max_acceptable_freight?: number | null;
+  number_of_voyages?: number;
+  contract_duration?: string | null;
+  selected_vessel_id?: string | null;
+  simulator_overrides?: {
+    congestion?: string | null;
+    weather?: string | null;
+    freight_rate_offset_percent?: number | null;
+    vessel_availability?: string | null;
+  } | null;
+  horizon_days?: number;
+}
+
+export interface VoyageEvaluationResult {
+  vesselRecommendations: VesselScoreBreakdown[];
+  topVesselBreakdown: VesselScoreBreakdown;
+  idlePrediction: IdlePredictionResult;
+  riskScores: RiskEngineResult;
+  voyageCost: VoyageCostBreakdown;
+  contractComparison: ContractComparisonResult;
+  forecast: ForecastResult;
+  optimalWindow: OptimalCharterWindowResult;
+}
+
+export function mapVesselScoreBreakdown(raw: any, portFallback?: PortSpec): VesselScoreBreakdown {
+  const v = raw?.vessel || {};
+  const compat = raw?.compatibility || {};
+
+  const vDraft = Number(v.draft ?? 0);
+  const pDraft = Number(portFallback?.maxDraft ?? 16.5);
+  const dMargin = compat.draft_margin !== undefined && compat.draft_margin !== null
+    ? Number(compat.draft_margin)
+    : Number((pDraft - vDraft).toFixed(2));
+
+  const vLoa = Number(v.loa ?? 0);
+  const pLoa = Number(portFallback?.maxLoa ?? 285.0);
+  const lMargin = compat.loa_margin !== undefined && compat.loa_margin !== null
+    ? Number(compat.loa_margin)
+    : Number((pLoa - vLoa).toFixed(2));
+
+  const vBeam = Number(v.beam ?? 0);
+  const pBeam = Number(portFallback?.maxBeam ?? 48.0);
+  const bMargin = compat.beam_margin !== undefined && compat.beam_margin !== null
+    ? Number(compat.beam_margin)
+    : Number((pBeam - vBeam).toFixed(2));
+
+  const vesselSpec: VesselSpec = {
+    id: (v.id || 'panamax').toLowerCase() as VesselClassId,
+    name: v.name || 'Bulk Carrier',
+    categoryName: v.category_name || v.categoryName || '',
+    dwtMin: Number(v.dwt_min ?? v.dwtMin ?? 0),
+    dwtMax: Number(v.dwt_max ?? v.dwtMax ?? 0),
+    dwtAvg: Number(v.dwt_avg ?? v.dwtAvg ?? 0),
+    draft: vDraft,
+    loa: vLoa,
+    beam: vBeam,
+    speed: Number(v.speed ?? 14.0),
+    fuelConsumption: Number(v.fuel_consumption ?? v.fuelConsumption ?? 25.0),
+    baseFreightRate: Number(v.base_freight_rate ?? v.baseFreightRate ?? 18.0),
+    hourlyRate: Number(v.hourly_rate ?? v.hourlyRate ?? 800.0),
+    demurrageRatePerDay: Number(v.demurrage_rate_per_day ?? v.demurrageRatePerDay ?? 20000.0),
+    availability: v.availability || 'Available',
+    description: v.description || '',
+  };
+
+  const portCompatibility: PortCompatibilityResult = {
+    isCompatible: Boolean(compat.is_compatible ?? compat.isCompatible),
+    score: Number(compat.score ?? 0),
+    draftFit: {
+      ok: Boolean(compat.draft_fit ?? compat.draftFit?.ok ?? dMargin >= 0),
+      vesselDraft: vDraft,
+      portMaxDraft: pDraft,
+      margin: dMargin,
+    },
+    loaFit: {
+      ok: Boolean(compat.loa_fit ?? compat.loaFit?.ok ?? lMargin >= 0),
+      vesselLoa: vLoa,
+      portMaxLoa: pLoa,
+      margin: lMargin,
+    },
+    beamFit: {
+      ok: Boolean(compat.beam_fit ?? compat.beamFit?.ok ?? bMargin >= 0),
+      vesselBeam: vBeam,
+      portMaxBeam: pBeam,
+      margin: bMargin,
+    },
+    warnings: Array.isArray(compat.warnings) ? compat.warnings : [],
+  };
+
+  return {
+    vessel: vesselSpec,
+    finalScore: Number(raw?.final_score ?? raw?.finalScore ?? 0),
+    capacityFitScore: Number(raw?.capacity_fit_score ?? raw?.capacityFitScore ?? 0),
+    portCompatibilityScore: Number(raw?.port_compatibility_score ?? raw?.portCompatibilityScore ?? 0),
+    costCompetitivenessScore: Number(raw?.cost_competitiveness_score ?? raw?.costCompetitivenessScore ?? 0),
+    availabilityScore: Number(raw?.availability_score ?? raw?.availabilityScore ?? 0),
+    idleTimeScore: Number(raw?.idle_time_score ?? raw?.idleTimeScore ?? 0),
+    isBestChoice: Boolean(raw?.is_best_choice ?? raw?.isBestChoice),
+    compatibility: portCompatibility,
+    reasons: Array.isArray(raw?.reasons) ? raw.reasons : [],
+    estimatedFreightPerMT: Number(raw?.estimated_freight_per_mt ?? raw?.estimatedFreightPerMT ?? 0),
+    estimatedTotalFreight: Number(raw?.estimated_total_freight ?? raw?.estimatedTotalFreight ?? 0),
+  };
+}
+
+export function mapVoyageCostBreakdown(raw: any): VoyageCostBreakdown {
+  const freightCostUSD = Number(raw?.freight_cost_usd ?? raw?.freightCostUSD ?? 0);
+  const portChargesUSD = Number(raw?.port_charges_usd ?? raw?.portChargesUSD ?? 0);
+  const loadingDischargeCostUSD = Number(raw?.loading_discharge_cost_usd ?? raw?.loadingDischargeCostUSD ?? 0);
+  const idleWaitingCostUSD = Number(raw?.idle_waiting_cost_usd ?? raw?.idleWaitingCostUSD ?? 0);
+  const delayDemurrageExposureUSD = Number(raw?.demurrage_exposure_usd ?? raw?.delayDemurrageExposureUSD ?? 0);
+  const totalCostUSD = Number(raw?.total_cost_usd ?? raw?.totalCostUSD ?? 0);
+  const totalCostINR = Number(raw?.total_cost_inr ?? raw?.totalCostINR ?? totalCostUSD * 83.5);
+  const totalCostINRLakhs = Number(raw?.total_cost_inr_lakhs ?? raw?.totalCostINRLakhs ?? (totalCostINR / 100000));
+  const totalCostINRCrores = Number(raw?.total_cost_inr_crores ?? raw?.totalCostINRCrores ?? (totalCostINR / 10000000));
+  const costPerMTUSD = Number(raw?.cost_per_mt_usd ?? raw?.costPerMTUSD ?? 0);
+  const freightRatePerMT = Number(raw?.freight_rate_per_mt ?? raw?.freightRatePerMT ?? 0);
+
+  const rawPercentages = raw?.percentages || {};
+  const percentages = {
+    freight: Number(rawPercentages.freight ?? 0),
+    port: Number(rawPercentages.port ?? 0),
+    handling: Number(rawPercentages.handling ?? 0),
+    idle: Number(rawPercentages.idle ?? 0),
+    risk: Number(rawPercentages.risk ?? rawPercentages.demurrage ?? 0),
+  };
+
+  return {
+    freightCostUSD,
+    portChargesUSD,
+    loadingDischargeCostUSD,
+    idleWaitingCostUSD,
+    delayDemurrageExposureUSD,
+    totalCostUSD,
+    freightRatePerMT,
+    totalCostINR,
+    totalCostINRLakhs,
+    totalCostINRCrores,
+    costPerMTUSD,
+    percentages,
+  };
+}
+
+export function mapRiskScores(raw: any): RiskEngineResult {
+  return {
+    marketRisk: Number(raw?.market_risk ?? raw?.marketRisk ?? 0),
+    portRisk: Number(raw?.port_risk ?? raw?.portRisk ?? 0),
+    weatherRisk: Number(raw?.weather_risk ?? raw?.weatherRisk ?? 0),
+    vesselRisk: Number(raw?.vessel_risk ?? raw?.vesselRisk ?? 0),
+    commodityRisk: Number(raw?.commodity_risk ?? raw?.commodityRisk ?? 0),
+    overallScore: Number(raw?.overall_score ?? raw?.overallScore ?? 0),
+    bucket: (raw?.bucket || 'Medium') as ('Low' | 'Medium' | 'High' | 'Critical'),
+    primaryDriver: raw?.primary_driver || raw?.primaryDriver || 'Market Risk',
+    summarySentence: raw?.summary_sentence || raw?.summarySentence || '',
+    congestionRisk: raw?.congestion_risk ? Number(raw.congestion_risk) : undefined,
+    volatilityRisk: raw?.volatility_risk ? Number(raw.volatility_risk) : undefined,
+    draftRisk: raw?.draft_risk ? Number(raw.draft_risk) : undefined,
+  };
+}
+
+export function mapIdlePrediction(raw: any): IdlePredictionResult {
+  return {
+    expectedIdleHours: Number(raw?.expected_idle_hours ?? raw?.expectedIdleHours ?? 0),
+    idleCostUSD: Number(raw?.idle_cost_usd ?? raw?.idleCostUSD ?? 0),
+    factors: Array.isArray(raw?.factors)
+      ? raw.factors.map((f: any) => ({
+          name: f.name || '',
+          impact: (f.impact || 'Low') as ('Low' | 'Medium' | 'High'),
+          hours: Number(f.hours ?? 0),
+          direction: (f.direction || 'up') as ('up' | 'down'),
+        }))
+      : [],
+    explanation: raw?.explanation || '',
+  };
+}
+
+export function mapContractComparison(raw: any): ContractComparisonResult {
+  return {
+    recommendedStrategy: (raw?.recommended_strategy || raw?.recommendedStrategy || 'Multiple-Voyage') as ('Multiple-Voyage' | 'Spot'),
+    spotTotalCostUSD: Number(raw?.spot_total_cost_usd ?? raw?.spotTotalCostUSD ?? 0),
+    multiVoyageTotalCostUSD: Number(raw?.multi_voyage_total_cost_usd ?? raw?.multiVoyageTotalCostUSD ?? 0),
+    savingsUSD: Number(raw?.savings_usd ?? raw?.savingsUSD ?? 0),
+    savingsINR: Number(raw?.savings_inr ?? raw?.savingsINR ?? 0),
+    savingsLakhs: Number(raw?.savings_lakhs ?? raw?.savingsLakhs ?? 0),
+    savingsPercent: Number(raw?.savings_percent ?? raw?.savingsPercent ?? 0),
+    spotRiskScore: Number(raw?.spot_risk_score ?? raw?.spotRiskScore ?? 0),
+    multiVoyageRiskScore: Number(raw?.multi_voyage_risk_score ?? raw?.multiVoyageRiskScore ?? 0),
+    spotFreightRatePerMT: Number(raw?.spot_freight_rate_per_mt ?? raw?.spotFreightRatePerMT ?? 0),
+    multiVoyageFreightRatePerMT: Number(raw?.multi_voyage_freight_rate_per_mt ?? raw?.multiVoyageFreightRatePerMT ?? 0),
+    reasoning: raw?.reasoning || '',
+  };
+}
+
+export function mapForecastResult(rawForecast: any, fallbackRoute: string = '', fallbackHorizon: number = 30): ForecastResult {
+  return {
+    route: rawForecast.route || fallbackRoute,
+    currentRate: Number(rawForecast.current_rate ?? rawForecast.currentRate ?? 0),
+    projectedRate14d: Number(rawForecast.projected_rate_14d ?? rawForecast.projectedRate14d ?? 0),
+    projectedRate30d: Number(rawForecast.projected_rate_30d ?? rawForecast.projectedRate30d ?? 0),
+    trend: rawForecast.trend || 'Stable',
+    trendPercent: Number(rawForecast.trend_percent ?? rawForecast.trendPercent ?? 0),
+    confidenceScore: Number(rawForecast.confidence_score ?? rawForecast.confidenceScore ?? 85),
+    horizonDays: (rawForecast.horizon_days || rawForecast.horizonDays || fallbackHorizon || 30) as (7 | 14 | 30 | 60),
+    dataPoints: Array.isArray(rawForecast.data_points || rawForecast.dataPoints)
+      ? (rawForecast.data_points || rawForecast.dataPoints).map((pt: any) => ({
+          date: pt.date,
+          dayIndex: Number(pt.day_index ?? pt.dayIndex ?? 0),
+          isForecast: Boolean(pt.is_forecast ?? pt.isForecast),
+          predicted: Number(pt.predicted ?? 0),
+          lowerBound: Number(pt.lower_bound ?? pt.lowerBound ?? 0),
+          upperBound: Number(pt.upper_bound ?? pt.upperBound ?? 0),
+          historical: pt.historical !== undefined && pt.historical !== null ? Number(pt.historical) : undefined,
+        }))
+      : [],
+    featureContributions: Array.isArray(rawForecast.feature_contributions || rawForecast.featureContributions)
+      ? (rawForecast.feature_contributions || rawForecast.featureContributions).map((fc: any) => ({
+          factor: fc.factor,
+          contributionPercent: Number(fc.contribution_percent ?? fc.contributionPercent ?? 0),
+          direction: fc.direction || 'up',
+          description: fc.description || '',
+        }))
+      : [],
+    netExpectedChangePercent: Number(rawForecast.net_expected_change_percent ?? rawForecast.netExpectedChangePercent ?? rawForecast.trend_percent ?? 0),
+  };
+}
+
+export function mapOptimalWindow(rawWindow: any): OptimalCharterWindowResult {
+  const rawRec = rawWindow.recommendation;
+  const recommendation = (rawRec === 'Avoid' || rawRec === 'Avoid / Reconsider')
+    ? 'Avoid / Reconsider'
+    : (rawRec === 'Wait' ? 'Wait' : 'Charter Now');
+
+  return {
+    recommendation,
+    bestWindowStart: rawWindow.best_window_start || rawWindow.bestWindowStart || '',
+    bestWindowEnd: rawWindow.best_window_end || rawWindow.bestWindowEnd || '',
+    potentialSavingsUSD: Number(rawWindow.potential_savings_usd ?? rawWindow.potentialSavingsUSD ?? 0),
+    potentialSavingsINR: Number(rawWindow.potential_savings_inr ?? rawWindow.potentialSavingsINR ?? 0),
+    potentialSavingsLakhs: Number(rawWindow.potential_savings_lakhs ?? rawWindow.potentialSavingsLakhs ?? 0),
+    tradeOffSentence: rawWindow.trade_off_sentence || rawWindow.tradeOffSentence || '',
+    detailedRationale: rawWindow.detailed_rationale || rawWindow.detailedRationale || '',
+  };
+}
+
+/**
+ * Call backend real-time evaluation endpoint POST /voyage/evaluate
+ * Returns the comprehensive mathematical domain results computed in Python.
+ */
+export async function evaluateVoyage(
+  payload: VoyageEvaluationPayload,
+  portFallback?: PortSpec
+): Promise<VoyageEvaluationResult> {
+  const data = await api.post('/voyage/evaluate', payload);
+
+  const rawRecs = Array.isArray(data?.vessel_recommendations) ? data.vessel_recommendations : [];
+  const vesselRecommendations = rawRecs.map((r: any) => mapVesselScoreBreakdown(r, portFallback));
+
+  const topVesselBreakdown = data?.top_vessel_breakdown
+    ? mapVesselScoreBreakdown(data.top_vessel_breakdown, portFallback)
+    : (vesselRecommendations[0] || ({} as VesselScoreBreakdown));
+
+  const voyageCost = mapVoyageCostBreakdown(data?.voyage_cost || {});
+  const riskScores = mapRiskScores(data?.risk_scores || {});
+  const idlePrediction = mapIdlePrediction(data?.idle_prediction || {});
+  const contractComparison = mapContractComparison(data?.contract_comparison || {});
+
+  const routeName = `${payload.origin_country} → ${payload.destination_port}`;
+  const forecast = mapForecastResult(data?.forecast || {}, routeName, payload.horizon_days || 30);
+  const optimalWindow = mapOptimalWindow(data?.optimal_window || {});
+
+  return {
+    vesselRecommendations,
+    topVesselBreakdown,
+    idlePrediction,
+    riskScores,
+    voyageCost,
+    contractComparison,
+    forecast,
+    optimalWindow,
+  };
+}
+
 /**
  * 6. Freight Forecasting & Risk
  */
@@ -246,53 +549,10 @@ export async function fetchQuickForecast(payload: QuickForecastPayload): Promise
 
   const rawForecast = data?.forecast || {};
   const rawWindow = data?.optimal_window || rawForecast?.optimal_charter_window || {};
+  const fallbackRoute = `${payload.origin} → ${payload.destination_port}`;
 
-  const forecast: ForecastResult = {
-    route: rawForecast.route || `${payload.origin} → ${payload.destination_port}`,
-    currentRate: Number(rawForecast.current_rate ?? 0),
-    projectedRate14d: Number(rawForecast.projected_rate_14d ?? 0),
-    projectedRate30d: Number(rawForecast.projected_rate_30d ?? 0),
-    trend: rawForecast.trend || 'Stable',
-    trendPercent: Number(rawForecast.trend_percent ?? 0),
-    confidenceScore: Number(rawForecast.confidence_score ?? 85),
-    horizonDays: (rawForecast.horizon_days || payload.horizon_days || 30) as (7 | 14 | 30 | 60),
-    dataPoints: Array.isArray(rawForecast.data_points)
-      ? rawForecast.data_points.map((pt: any) => ({
-          date: pt.date,
-          dayIndex: Number(pt.day_index ?? pt.dayIndex ?? 0),
-          isForecast: Boolean(pt.is_forecast ?? pt.isForecast),
-          predicted: Number(pt.predicted ?? 0),
-          lowerBound: Number(pt.lower_bound ?? pt.lowerBound ?? 0),
-          upperBound: Number(pt.upper_bound ?? pt.upperBound ?? 0),
-          historical: pt.historical !== undefined && pt.historical !== null ? Number(pt.historical) : undefined,
-        }))
-      : [],
-    featureContributions: Array.isArray(rawForecast.feature_contributions)
-      ? rawForecast.feature_contributions.map((fc: any) => ({
-          factor: fc.factor,
-          contributionPercent: Number(fc.contribution_percent ?? fc.contributionPercent ?? 0),
-          direction: fc.direction || 'up',
-          description: fc.description || '',
-        }))
-      : [],
-    netExpectedChangePercent: Number(rawForecast.net_expected_change_percent ?? rawForecast.trend_percent ?? 0),
-  };
-
-  const rawRec = rawWindow.recommendation;
-  const recommendation = (rawRec === 'Avoid' || rawRec === 'Avoid / Reconsider')
-    ? 'Avoid / Reconsider'
-    : (rawRec === 'Wait' ? 'Wait' : 'Charter Now');
-
-  const optimalWindow: OptimalCharterWindowResult = {
-    recommendation,
-    bestWindowStart: rawWindow.best_window_start || rawWindow.bestWindowStart || '',
-    bestWindowEnd: rawWindow.best_window_end || rawWindow.bestWindowEnd || '',
-    potentialSavingsUSD: Number(rawWindow.potential_savings_usd ?? rawWindow.potentialSavingsUSD ?? 0),
-    potentialSavingsINR: Number(rawWindow.potential_savings_inr ?? rawWindow.potentialSavingsINR ?? 0),
-    potentialSavingsLakhs: Number(rawWindow.potential_savings_lakhs ?? rawWindow.potentialSavingsLakhs ?? 0),
-    tradeOffSentence: rawWindow.trade_off_sentence || rawWindow.tradeOffSentence || '',
-    detailedRationale: rawWindow.detailed_rationale || rawWindow.detailedRationale || '',
-  };
+  const forecast = mapForecastResult(rawForecast, fallbackRoute, payload.horizon_days);
+  const optimalWindow = mapOptimalWindow(rawWindow);
 
   return { forecast, optimalWindow };
 }

@@ -22,7 +22,8 @@ import {
   generateVoyagePlan,
   getVoyagePlans,
   fetchQuickForecast,
-  QuickForecastPayload,
+  evaluateVoyage,
+  VoyageEvaluationPayload,
 } from '../utils/api';
 import {
   CargoRequest,
@@ -37,6 +38,11 @@ import {
   ContractComparisonResult,
   SimulatorOverrides,
   AlertItem,
+  DestinationPort,
+  VesselClassId,
+  AuthUser,
+} from '../types';
+import {
   VESSEL_SPECS,
   PORT_SPECS,
   ROUTE_BASELINE_RATES,
@@ -47,10 +53,7 @@ import {
   generateForecast,
   determineOptimalWindow,
   compareContracts,
-  DestinationPort,
-  VesselClassId,
-  AuthUser,
-} from '../types';
+} from '../services/maritimeEngine';
 
 export type NavigationTab =
   | 'dashboard'
@@ -337,47 +340,49 @@ export const CharterProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setSimulatorOverrides(DEFAULT_SIMULATOR_OVERRIDES);
   };
 
-  // 1. Vessel Ranking & Recommendation (Instant local calculation)
-  const vesselRecommendations = useMemo(() => {
+  // 1. Vessel Ranking & Recommendation State (Booted instantly with local algorithm, synchronized with Python backend)
+  const [vesselRecommendations, setVesselRecommendations] = useState<VesselScoreBreakdown[]>(() => {
     return recommendVessels(cargoRequest, selectedPort, simulatorOverrides);
-  }, [cargoRequest, selectedPort, simulatorOverrides]);
+  });
 
-  const topVesselBreakdown = useMemo(() => {
-    return vesselRecommendations[0] || recommendVessels(cargoRequest, selectedPort)[0];
-  }, [vesselRecommendations, cargoRequest, selectedPort]);
+  const [topVesselBreakdown, setTopVesselBreakdown] = useState<VesselScoreBreakdown>(() => {
+    const recs = recommendVessels(cargoRequest, selectedPort, simulatorOverrides);
+    return recs[0] || recommendVessels(cargoRequest, selectedPort)[0];
+  });
 
-  // Keep selected vessel synced with top vessel if in auto mode
-  useEffect(() => {
-    if (cargoRequest.preferredVesselType === 'Let AI decide' && topVesselBreakdown) {
-      setSelectedVesselIdState(topVesselBreakdown.vessel.id);
-    }
-  }, [cargoRequest.preferredVesselType, topVesselBreakdown]);
-
-  // 2. Risk Engine (Instant local calculation)
-  const riskScores = useMemo(() => {
+  // 2. Risk Engine State
+  const [riskScores, setRiskScores] = useState<RiskEngineResult>(() => {
     return calculateRiskScores(cargoRequest, selectedVessel, selectedPort, simulatorOverrides);
-  }, [cargoRequest, selectedVessel, selectedPort, simulatorOverrides]);
+  });
 
-  // 3. Idle Time Prediction (Instant local calculation)
-  const idlePrediction = useMemo(() => {
-    const compat = topVesselBreakdown.compatibility;
+  // 3. Idle Time Prediction State
+  const [idlePrediction, setIdlePrediction] = useState<IdlePredictionResult>(() => {
+    const recs = recommendVessels(cargoRequest, selectedPort, simulatorOverrides);
+    const compat = recs[0]?.compatibility;
     const congestion = simulatorOverrides.congestion || selectedPort.congestion;
     const weather = simulatorOverrides.weather || 'Normal';
     return predictIdleTime(selectedPort, selectedVessel, weather, congestion, compat);
-  }, [selectedPort, selectedVessel, simulatorOverrides, topVesselBreakdown]);
+  });
 
-  // 4. Voyage Cost (Instant local calculation)
-  const voyageCost = useMemo(() => {
-    return calculateVoyageCost(cargoRequest, selectedVessel, selectedPort, idlePrediction, riskScores, simulatorOverrides);
-  }, [cargoRequest, selectedVessel, selectedPort, idlePrediction, riskScores, simulatorOverrides]);
+  // 4. Voyage Cost State
+  const [voyageCost, setVoyageCost] = useState<VoyageCostBreakdown>(() => {
+    const recs = recommendVessels(cargoRequest, selectedPort, simulatorOverrides);
+    const compat = recs[0]?.compatibility;
+    const congestion = simulatorOverrides.congestion || selectedPort.congestion;
+    const weather = simulatorOverrides.weather || 'Normal';
+    const idle = predictIdleTime(selectedPort, selectedVessel, weather, congestion, compat);
+    const risk = calculateRiskScores(cargoRequest, selectedVessel, selectedPort, simulatorOverrides);
+    return calculateVoyageCost(cargoRequest, selectedVessel, selectedPort, idle, risk, simulatorOverrides);
+  });
 
-  // 5 & 6. Freight Forecast Series & Optimal Charter Window (State initialized with local calculation, synchronized with backend ML API)
+  // 5. Freight Forecast Series State
   const [forecast, setForecast] = useState<ForecastResult>(() => {
     const route = `${cargoRequest.origin} → ${selectedPort.name}`;
     const baseRate = ROUTE_BASELINE_RATES[cargoRequest.origin]?.[cargoRequest.destinationPort] || 18.0;
     return generateForecast(route, baseRate, forecastHorizon, simulatorOverrides);
   });
 
+  // 6. Optimal Charter Window Advisory State
   const [optimalWindow, setOptimalWindow] = useState<OptimalCharterWindowResult>(() => {
     const route = `${cargoRequest.origin} → ${selectedPort.name}`;
     const baseRate = ROUTE_BASELINE_RATES[cargoRequest.origin]?.[cargoRequest.destinationPort] || 18.0;
@@ -386,67 +391,125 @@ export const CharterProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return determineOptimalWindow(initialForecast, cargoRequest, initialRisk);
   });
 
-  // Query live ML forecasting endpoint from FastAPI backend with automatic fallback to local calculation engine
+  // 7. Contract Strategy State
+  const [contractComparison, setContractComparison] = useState<ContractComparisonResult>(() => {
+    const recs = recommendVessels(cargoRequest, selectedPort, simulatorOverrides);
+    const compat = recs[0]?.compatibility;
+    const congestion = simulatorOverrides.congestion || selectedPort.congestion;
+    const weather = simulatorOverrides.weather || 'Normal';
+    const idle = predictIdleTime(selectedPort, selectedVessel, weather, congestion, compat);
+    const risk = calculateRiskScores(cargoRequest, selectedVessel, selectedPort, simulatorOverrides);
+    const cost = calculateVoyageCost(cargoRequest, selectedVessel, selectedPort, idle, risk, simulatorOverrides);
+    return compareContracts(cargoRequest, selectedVessel, cost, risk);
+  });
+
+  // Synchronize with authoritative Python FastAPI backend (/api/v1/voyage/evaluate),
+  // with debouncing for high-frequency slider adjustments and automatic graceful fallback to local engine.
   useEffect(() => {
     let isCancelled = false;
-
-    const loadForecast = async () => {
+    const timer = setTimeout(async () => {
       try {
-        const payload: QuickForecastPayload = {
-          origin: cargoRequest.origin,
-          destination_port: selectedPort.id || cargoRequest.destinationPort,
+        const payload: VoyageEvaluationPayload = {
           cargo_type: cargoRequest.cargoType,
           cargo_quantity_mt: cargoRequest.cargoQuantity,
-          preferred_vessel_type:
-            cargoRequest.preferredVesselType && cargoRequest.preferredVesselType !== 'Let AI decide'
-              ? cargoRequest.preferredVesselType
-              : (selectedVessel?.id || 'panamax'),
-          horizon_days: forecastHorizon,
+          origin_country: cargoRequest.origin,
+          destination_port: cargoRequest.destinationPort,
+          required_delivery_date: cargoRequest.requiredDeliveryDate,
+          loading_window_start: cargoRequest.loadingWindowStart,
+          loading_window_end: cargoRequest.loadingWindowEnd,
+          discharge_window_start: cargoRequest.dischargeWindowStart,
+          discharge_window_end: cargoRequest.dischargeWindowEnd,
+          preferred_vessel_type: cargoRequest.preferredVesselType,
+          priority: cargoRequest.priority,
+          max_acceptable_freight: cargoRequest.maxAcceptableFreight,
+          number_of_voyages: cargoRequest.numberOfVoyages,
+          contract_duration: cargoRequest.contractDuration,
+          selected_vessel_id: selectedVesselId,
           simulator_overrides: {
             congestion: simulatorOverrides.congestion,
             weather: simulatorOverrides.weather,
             freight_rate_offset_percent: simulatorOverrides.freightRateOffsetPercent,
             vessel_availability: simulatorOverrides.vesselAvailability,
           },
+          horizon_days: forecastHorizon,
         };
 
-        const res = await fetchQuickForecast(payload);
-        if (!isCancelled && res?.forecast && res?.optimalWindow) {
-          setForecast(res.forecast);
-          setOptimalWindow(res.optimalWindow);
+        const res = await evaluateVoyage(payload, selectedPort);
+        if (!isCancelled && res) {
+          if (res.vesselRecommendations?.length) {
+            setVesselRecommendations(res.vesselRecommendations);
+          }
+          if (res.topVesselBreakdown) {
+            setTopVesselBreakdown(res.topVesselBreakdown);
+            if (cargoRequest.preferredVesselType === 'Let AI decide') {
+              setSelectedVesselIdState(res.topVesselBreakdown.vessel.id);
+            }
+          }
+          if (res.riskScores) setRiskScores(res.riskScores);
+          if (res.idlePrediction) setIdlePrediction(res.idlePrediction);
+          if (res.voyageCost) setVoyageCost(res.voyageCost);
+          if (res.contractComparison) setContractComparison(res.contractComparison);
+          if (res.forecast) setForecast(res.forecast);
+          if (res.optimalWindow) setOptimalWindow(res.optimalWindow);
         }
       } catch (err) {
-        console.warn('[CharterContext] Backend ML forecast API unreachable, applying local offline fallback:', err);
+        console.warn('[CharterContext] Backend evaluation API unreachable, running local calculation engine fallback:', err);
         if (!isCancelled) {
+          const localVessels = recommendVessels(cargoRequest, selectedPort, simulatorOverrides);
+          const localTop = localVessels[0] || localVessels[0];
+          if (cargoRequest.preferredVesselType === 'Let AI decide' && localTop) {
+            setSelectedVesselIdState(localTop.vessel.id);
+          }
+          const localRisk = calculateRiskScores(cargoRequest, selectedVessel, selectedPort, simulatorOverrides);
+          const localIdle = predictIdleTime(
+            selectedPort,
+            selectedVessel,
+            simulatorOverrides.weather,
+            simulatorOverrides.congestion || selectedPort.congestion,
+            localTop.compatibility
+          );
+          const localCost = calculateVoyageCost(
+            cargoRequest,
+            selectedVessel,
+            selectedPort,
+            localIdle,
+            localRisk,
+            simulatorOverrides
+          );
+          const localContract = compareContracts(cargoRequest, selectedVessel, localCost, localRisk);
           const route = `${cargoRequest.origin} → ${selectedPort.name}`;
-          const baseRate = voyageCost.freightRatePerMT;
-          const fallbackForecast = generateForecast(route, baseRate, forecastHorizon, simulatorOverrides);
-          const fallbackWindow = determineOptimalWindow(fallbackForecast, cargoRequest, riskScores);
-          setForecast(fallbackForecast);
-          setOptimalWindow(fallbackWindow);
+          const localForecast = generateForecast(
+            route,
+            localCost.freightRatePerMT,
+            forecastHorizon,
+            simulatorOverrides
+          );
+          const localWindow = determineOptimalWindow(localForecast, cargoRequest, localRisk);
+
+          setVesselRecommendations(localVessels);
+          setTopVesselBreakdown(localTop);
+          setRiskScores(localRisk);
+          setIdlePrediction(localIdle);
+          setVoyageCost(localCost);
+          setContractComparison(localContract);
+          setForecast(localForecast);
+          setOptimalWindow(localWindow);
         }
       }
-    };
-
-    loadForecast();
+    }, 150);
 
     return () => {
       isCancelled = true;
+      clearTimeout(timer);
     };
   }, [
     cargoRequest,
     selectedPort,
+    selectedVesselId,
     selectedVessel,
-    forecastHorizon,
     simulatorOverrides,
-    voyageCost.freightRatePerMT,
-    riskScores,
+    forecastHorizon,
   ]);
-
-  // 7. Contract Strategy (Instant local calculation)
-  const contractComparison = useMemo(() => {
-    return compareContracts(cargoRequest, selectedVessel, voyageCost, riskScores);
-  }, [cargoRequest, selectedVessel, voyageCost, riskScores]);
 
   const dismissAlert = (id: string) => {
     setAlerts((prev) => prev.filter((a) => a.id !== id));

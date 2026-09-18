@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, Optional
-from sqlalchemy import DateTime, ForeignKey, String, text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import DateTime, ForeignKey, String, func, text
+from app.database import JSONB, SERVER_JSON_DEFAULT, SERVER_UUID_DEFAULT, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -24,7 +24,7 @@ class Report(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
+        server_default=SERVER_UUID_DEFAULT,
         index=True,
         nullable=False,
     )
@@ -53,12 +53,12 @@ class Report(Base):
         JSONB,
         nullable=False,
         default=dict,
-        server_default=text("'{}'::jsonb"),
+        server_default=SERVER_JSON_DEFAULT,
         doc="Full structured payload of the generated report",
     )
     generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        server_default=text("now()"),
+        server_default=func.now(),
         nullable=False,
     )
 

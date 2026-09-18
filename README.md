@@ -1,4 +1,4 @@
-﻿# 🚢 CharterMind — Maritime Freight & Voyage Decision Terminal
+# 🚢 CharterMind — Maritime Freight & Voyage Decision Terminal
 ### Smart India Hackathon (SIH) Project
 
 An AI-powered maritime bulk shipping decision terminal featuring dynamic freight rate forecasting, intelligent vessel-cargo matching, port turnaround risk modeling, and interactive voyage simulator.
@@ -70,13 +70,18 @@ Clone or unzip the project, then follow these simple steps to run it on your mac
    ```bash
    pip install -r requirements.txt
    ```
-5. Start the FastAPI server:
+5. Apply database schema migrations:
+   ```bash
+   # Applies all versioned migrations (PostgreSQL or zero-install SQLite):
+   alembic upgrade head
+   ```
+6. Start the FastAPI server:
    ```bash
    uvicorn app.main:app --reload --port 8000
    ```
-6. Verify the API:
+7. Verify the API:
    - Interactive API Docs (Swagger): **http://localhost:8000/docs**
-   - Health Check: **http://localhost:8000/**
+   - Health Check: **http://localhost:8000/health**
 
 ---
 
@@ -92,12 +97,21 @@ SIH/
 │   │   └── types.ts      # TypeScript interfaces and vessel/port data
 │   └── package.json
 │
-├── backend/              # FastAPI + SQLAlchemy 2.0 (Async) + Pydantic v2
+├── backend/              # Primary Full-Stack API (Port 8000)
 │   ├── app/
 │   │   ├── routers/      # API routes (voyage, freight forecast, risk, auth)
 │   │   ├── models/       # Database models (PostgreSQL)
-│   │   └── services/     # Maritime decision engines & regression models
+│   │   ├── services/     # Maritime decision engines & regression models
+│   │   └── ml_artifacts/ # Bundled trained model binaries & historical series
+│   ├── run.py            # Backend launcher script (python run.py --dev)
 │   └── requirements.txt
+│
+├── ml_model/             # Standalone ML Subsystem & Research (Port 8001)
+│   ├── data/             # BDI historical index and port traffic datasets
+│   ├── models/           # Serialized models and feature weight metadata
+│   ├── training/         # Walk-forward cross-validation training scripts
+│   ├── app/              # Independent lightweight FastAPI microservice
+│   └── run.py            # Standalone ML launcher (python run.py --dev)
 │
 ├── README.md             # This file
 └── .gitignore            # Git exclusion rules

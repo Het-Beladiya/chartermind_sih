@@ -32,6 +32,9 @@ class PortCompatibilityResult(BaseModel):
     draft_fit: bool = Field(..., description="Whether laden draft fits port permissible water depth")
     loa_fit: bool = Field(..., description="Whether vessel length fits quay berth length")
     beam_fit: bool = Field(..., description="Whether vessel beam fits channel and crane outreach")
+    draft_margin: Optional[float] = Field(None, description="Draft clearance margin in meters (port_max - vessel_draft)")
+    loa_margin: Optional[float] = Field(None, description="LOA clearance margin in meters (port_max - vessel_loa)")
+    beam_margin: Optional[float] = Field(None, description="Beam clearance margin in meters (port_max - vessel_beam)")
     warnings: List[str] = Field(default_factory=list, description="Navigation, tidal, or lighterage caveats")
 
     model_config = ConfigDict(from_attributes=True)

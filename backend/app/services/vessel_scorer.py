@@ -60,6 +60,9 @@ def check_port_compatibility(vessel: VesselSpec, port: PortSpec) -> PortCompatib
         draft_fit=draft_ok,
         loa_fit=loa_ok,
         beam_fit=beam_ok,
+        draft_margin=draft_margin,
+        loa_margin=loa_margin,
+        beam_margin=beam_margin,
         warnings=warnings,
     )
 
